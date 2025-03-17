@@ -26,7 +26,7 @@ body {
 }
 
 .container {
-    max-width: 2000px;
+    max-width: 2400px;
     margin: 0 auto;
     padding: 2rem;
     box-sizing: border-box;
@@ -187,7 +187,7 @@ h2 {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    margin: 2rem auto;
+    margin: 0;
     padding: 1rem 2.5rem;
     font-size: 1.2rem;
     font-weight: 600;
@@ -737,7 +737,7 @@ h2 {
 
 .full-draft-order {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 2rem;
     margin-top: 1.5rem;
     width: 100%;
@@ -748,7 +748,6 @@ h2 {
     border-radius: 10px;
     padding: 1.5rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    min-width: 0;
     width: 100%;
 }
 
@@ -767,12 +766,10 @@ h2 {
     padding: 1rem 1.2rem;
     margin-bottom: 0.8rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    display: grid;
-    grid-template-columns: 40px 1fr auto;
+    display: flex;
     align-items: center;
-    gap: 1rem;
-    min-height: 3.5rem;
     width: 100%;
+    min-height: 3.5rem;
 }
 
 .draft-pick:hover {
@@ -781,31 +778,141 @@ h2 {
 }
 
 .draft-pick-number {
+    flex: 0 0 2rem;
     font-weight: 600;
     color: var(--primary-color);
-    width: 40px;
-    text-align: left;
 }
 
 .draft-pick-team {
+    flex: 1;
     font-weight: 500;
+    padding: 0 1rem;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    padding: 0 0.5rem;
 }
 
 .draft-pick-original {
+    flex: 0 0 auto;
     font-size: 0.85rem;
     color: var(--text-secondary);
     font-style: italic;
+    padding-left: 1rem;
     white-space: nowrap;
-    text-align: right;
-    min-width: max-content;
 }
 
 @media (max-width: 576px) {
     .full-draft-order {
         grid-template-columns: 1fr;
     }
+}
+
+.lottery-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem auto;
+}
+
+.magic-number-input {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.magic-number-input label {
+    font-weight: 500;
+    color: var(--primary-color);
+    white-space: nowrap;
+}
+
+.magic-number-input input {
+    width: 80px;
+    padding: 0.8rem;
+    border: 2px solid #e0e4ff;
+    border-radius: 8px;
+    font-size: 1rem;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.magic-number-input input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(72, 52, 212, 0.1);
+}
+
+.magic-number-input input::-webkit-inner-spin-button,
+.magic-number-input input::-webkit-outer-spin-button {
+    opacity: 1;
+}
+
+.quick-iteration-podium {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    margin: 1rem auto;
+    padding: 1rem;
+    height: 120px;
+    gap: 4px;
+}
+
+.podium-place {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.podium-block {
+    width: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    color: #333;
+    font-weight: bold;
+    border-radius: 8px 8px 0 0;
+}
+
+.podium-team-name {
+    font-weight: bold;
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+}
+
+.podium-place.first .podium-block {
+    height: 100px;
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4a 100%);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+}
+
+.podium-place.second .podium-block {
+    height: 80px;
+    background: linear-gradient(135deg, #c0c0c0 0%, #e0e0e0 100%);
+    box-shadow: 0 4px 8px rgba(192, 192, 192, 0.3);
+}
+
+.podium-place.third .podium-block {
+    height: 60px;
+    background: linear-gradient(135deg, #cd7f32 0%, #dda15e 100%);
+    box-shadow: 0 4px 8px rgba(205, 127, 50, 0.3);
+}
+
+.iteration-number {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 } 

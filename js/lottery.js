@@ -310,10 +310,46 @@ function updateFullDraftOrder(lotteryResults) {
     }
 }
 
-// Modify the runLottery function to update the full draft order
+// Function to run a quick lottery without animation
+function runQuickLottery() {
+    // Create a copy of teams for the lottery
+    const lotteryTeams = teams.slice(0, 8);
+    const availableTeams = [...lotteryTeams];
+    const results = [];
+
+    // Generate top 8 picks through lottery
+    for (let i = 0; i < 8; i++) {
+        const selectedIndex = getRandomTeam(availableTeams);
+        if (selectedIndex === null) {
+            console.error('Failed to select a team');
+            break;
+        }
+        const selectedTeam = availableTeams[selectedIndex];
+        results.push(selectedTeam);
+        availableTeams.splice(selectedIndex, 1);
+    }
+
+    // Add teams 9-12 automatically
+    for (let i = 8; i < 12; i++) {
+        results.push(teams[i]);
+    }
+
+    return results;
+}
+
+// Modify the runLottery function to handle magic number with visible quick runs
 function runLottery() {
     console.log('Running lottery...');
     
+    // Get magic number
+    const magicNumberInput = document.getElementById('magicNumber');
+    const magicNumber = parseInt(magicNumberInput.value) || 1;
+    
+    if (magicNumber < 1 || magicNumber > 99) {
+        alert('Magic number must be between 1 and 99');
+        return;
+    }
+
     // Update team names from inputs
     const inputs = document.querySelectorAll('.team-input-row input');
     inputs.forEach((input, index) => {
@@ -326,29 +362,6 @@ function runLottery() {
     
     // Save team names
     saveTeamNames();
-
-    // Create a copy of teams for the lottery
-    const lotteryTeams = teams.slice(0, 8); // Only first 8 teams participate in lottery
-    const availableTeams = [...lotteryTeams];
-    const results = [];
-
-    // Generate top 8 picks through lottery
-    for (let i = 0; i < 8; i++) {
-        const selectedIndex = getRandomTeam(availableTeams);
-        if (selectedIndex === null) {
-            console.error('Failed to select a team');
-            break;
-        }
-        
-        const selectedTeam = availableTeams[selectedIndex];
-        results.push(selectedTeam);
-        availableTeams.splice(selectedIndex, 1);
-    }
-
-    // Add teams 9-12 automatically for picks 9-12
-    for (let i = 8; i < 12; i++) {
-        results.push(teams[i]);
-    }
 
     // Create full-screen lottery view
     const fullscreenView = document.createElement('div');
@@ -372,149 +385,191 @@ function runLottery() {
     // Add title
     const title = document.createElement('h2');
     title.className = 'lottery-title';
-    title.textContent = 'Lu\'s Dynasty League Draft Lottery';
+    title.textContent = `Lu's Dynasty League Draft Lottery (Magic Number: ${magicNumber})`;
     contentContainer.appendChild(title);
     
     // Create animation container
     const animationContainer = document.createElement('div');
     animationContainer.className = 'lottery-animation-container';
     contentContainer.appendChild(animationContainer);
-    
-    // Show calculating message
-    const calculatingMsg = document.createElement('div');
-    calculatingMsg.className = 'fullscreen-calculating';
-    calculatingMsg.textContent = 'Calculating the draft order...';
-    animationContainer.appendChild(calculatingMsg);
 
-    // Define the reveal function
-    function revealNextPick(index) {
-        if (index >= 0) {
-            const resultItem = document.createElement('div');
-            resultItem.className = 'fullscreen-result-item';
+    // Function to run quick iterations with visual feedback
+    function runQuickIterations(currentIteration) {
+        if (currentIteration < magicNumber - 1) {
+            // Show iteration number
+            const iterationMsg = document.createElement('div');
+            iterationMsg.className = 'iteration-number';
+            iterationMsg.textContent = `Lottery Results ${currentIteration + 1} of ${magicNumber - 1}`;
+            animationContainer.innerHTML = '';
+            animationContainer.appendChild(iterationMsg);
+
+            // Run the quick lottery
+            const quickResults = runQuickLottery();
             
-            // Set background color based on pick number
-            if (index === 0) { // 1st pick
-                resultItem.style.backgroundColor = '#ffd700'; // Gold
-                resultItem.style.fontWeight = 'bold';
-                resultItem.style.fontSize = '1.6rem';
-                resultItem.style.boxShadow = '0 4px 10px rgba(255, 215, 0, 0.5)';
-            } else if (index === 1) { // 2nd pick
-                resultItem.style.backgroundColor = '#c0c0c0'; // Silver
-                resultItem.style.fontWeight = 'bold';
-                resultItem.style.fontSize = '1.5rem';
-                resultItem.style.boxShadow = '0 4px 8px rgba(192, 192, 192, 0.5)';
-            } else if (index === 2) { // 3rd pick
-                resultItem.style.backgroundColor = '#cd7f32'; // Bronze
-                resultItem.style.fontWeight = 'bold';
-                resultItem.style.fontSize = '1.4rem';
-                resultItem.style.boxShadow = '0 4px 8px rgba(205, 127, 50, 0.5)';
-            }
+            // Create podium display
+            const podiumContainer = document.createElement('div');
+            podiumContainer.className = 'quick-iteration-podium';
             
-            resultItem.textContent = `Pick ${index + 1}: ${results[index].name}`;
+            // Create podium places (in reverse order for flex alignment)
+            [2, 1, 0].forEach((place) => {
+                const podiumPlace = document.createElement('div');
+                podiumPlace.className = `podium-place ${place === 0 ? 'first' : place === 1 ? 'second' : 'third'}`;
+                
+                const podiumBlock = document.createElement('div');
+                podiumBlock.className = 'podium-block';
+                
+                const teamName = document.createElement('div');
+                teamName.className = 'podium-team-name';
+                teamName.textContent = quickResults[place].name;
+                
+                const placeNumber = document.createElement('div');
+                placeNumber.textContent = `${place + 1}${place === 0 ? 'st' : place === 1 ? 'nd' : 'rd'}`;
+                
+                podiumBlock.appendChild(teamName);
+                podiumBlock.appendChild(placeNumber);
+                podiumPlace.appendChild(podiumBlock);
+                podiumContainer.appendChild(podiumPlace);
+            });
             
-            // Add a drumroll effect for the top 3 picks
-            if (index <= 2) {
-                const drumroll = document.createElement('div');
-                drumroll.className = 'fullscreen-drumroll';
-                
-                // Set text and color based on pick number
-                if (index === 0) {
-                    drumroll.textContent = 'The team picking 1st in this years draft will be...';
-                    drumroll.style.color = '#ffd700'; // Gold
-                } else if (index === 1) {
-                    drumroll.textContent = 'The team picking 2nd in this years draft will be...';
-                    drumroll.style.color = '#c0c0c0'; // Silver
-                } else {
-                    drumroll.textContent = 'The team picking 3rd in this years draft will be...';
-                    drumroll.style.color = '#cd7f32'; // Bronze
-                }
-                
-                // Insert at the beginning of the container
-                animationContainer.insertBefore(drumroll, animationContainer.firstChild);
-                
-                // Show drumroll for 2 seconds, then show the result for 3 seconds (total 5 seconds)
-                setTimeout(() => {
-                    animationContainer.removeChild(drumroll);
-                    // Insert the new pick at the beginning of the container
+            animationContainer.appendChild(podiumContainer);
+
+            // Continue to next iteration after a short delay
+            setTimeout(() => {
+                runQuickIterations(currentIteration + 1);
+            }, 800);
+        } else {
+            // Start the final lottery animation
+            runFinalLottery();
+        }
+    }
+
+    // Function to run the final lottery with full animation
+    function runFinalLottery() {
+        // Clear the animation container
+        animationContainer.innerHTML = '';
+
+        // Show calculating message
+        const calculatingMsg = document.createElement('div');
+        calculatingMsg.className = 'fullscreen-calculating';
+        calculatingMsg.textContent = 'Calculating the FINAL draft order...';
+        calculatingMsg.style.color = '#ffd700';
+        calculatingMsg.style.fontSize = '2rem';
+        animationContainer.appendChild(calculatingMsg);
+
+        // Run the actual lottery
+        const results = runQuickLottery();
+
+        // Start the reveal process after a delay
+        setTimeout(() => {
+            animationContainer.removeChild(calculatingMsg);
+            revealLaterPicks();
+        }, 3000);
+
+        // Define the reveal function for the final lottery
+        function revealLaterPicks() {
+            let currentIndex = 11;
+            
+            function showNextLaterPick() {
+                if (currentIndex >= 8) {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'fullscreen-result-item';
+                    resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name} (Automatic)`;
+                    
+                    resultItem.style.backgroundColor = '#ffcccb';
+                    resultItem.style.fontWeight = 'normal';
+                    resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
+                    
                     animationContainer.insertBefore(resultItem, animationContainer.firstChild);
                     
-                    // Move to next pick after 3 more seconds (total 5 seconds per pick)
-                    setTimeout(() => {
-                        revealNextPick(index - 1);
-                    }, 3000);
-                }, 2000);
-            } else {
-                // For regular picks, just show the result for 5 seconds
-                // Insert the new pick at the beginning of the container
-                animationContainer.insertBefore(resultItem, animationContainer.firstChild);
-                
-                // Move to next pick after 5 seconds
-                setTimeout(() => {
-                    revealNextPick(index - 1);
-                }, 5000);
-            }
-        } else {
-            // All picks revealed, add completion message
-            const completeMsg = document.createElement('div');
-            completeMsg.className = 'fullscreen-complete';
-            completeMsg.textContent = 'Draft lottery complete!';
-            // Insert at the beginning of the container
-            animationContainer.insertBefore(completeMsg, animationContainer.firstChild);
-            
-            // Also update the regular results div
-            updateResultsDiv(results);
-            
-            // Update the full draft order
-            updateFullDraftOrder(results);
-        }
-    }
-    
-    // First reveal picks 12-9 one by one
-    function revealLaterPicks() {
-        let currentIndex = 11; // Start with pick 12
-        
-        function showNextLaterPick() {
-            if (currentIndex >= 8) {
-                const resultItem = document.createElement('div');
-                resultItem.className = 'fullscreen-result-item';
-                resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name} (Automatic)`;
-                
-                // Style with light red color
-                resultItem.style.backgroundColor = '#ffcccb'; // Light red
-                resultItem.style.fontWeight = 'normal';
-                resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
-                
-                // Insert at the beginning of the container
-                animationContainer.insertBefore(resultItem, animationContainer.firstChild);
-                
-                currentIndex--;
-                
-                // Continue to next pick after 2 seconds (faster than main lottery)
-                if (currentIndex >= 8) {
-                    setTimeout(showNextLaterPick, 2000);
-                } else {
-                    // After showing all later picks, start the main lottery reveal
-                    setTimeout(() => {
-                        revealNextPick(7);
-                    }, 3000);
+                    currentIndex--;
+                    
+                    if (currentIndex >= 8) {
+                        setTimeout(showNextLaterPick, 2000);
+                    } else {
+                        setTimeout(() => {
+                            revealNextPick(7);
+                        }, 3000);
+                    }
                 }
             }
+            
+            showNextLaterPick();
         }
-        
-        // Start showing later picks
-        showNextLaterPick();
+
+        function revealNextPick(index) {
+            if (index >= 0) {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'fullscreen-result-item';
+                
+                if (index === 0) {
+                    resultItem.style.backgroundColor = '#ffd700';
+                    resultItem.style.fontWeight = 'bold';
+                    resultItem.style.fontSize = '1.6rem';
+                    resultItem.style.boxShadow = '0 4px 10px rgba(255, 215, 0, 0.5)';
+                } else if (index === 1) {
+                    resultItem.style.backgroundColor = '#c0c0c0';
+                    resultItem.style.fontWeight = 'bold';
+                    resultItem.style.fontSize = '1.5rem';
+                    resultItem.style.boxShadow = '0 4px 8px rgba(192, 192, 192, 0.5)';
+                } else if (index === 2) {
+                    resultItem.style.backgroundColor = '#cd7f32';
+                    resultItem.style.fontWeight = 'bold';
+                    resultItem.style.fontSize = '1.4rem';
+                    resultItem.style.boxShadow = '0 4px 8px rgba(205, 127, 50, 0.5)';
+                }
+                
+                resultItem.textContent = `Pick ${index + 1}: ${results[index].name}`;
+                
+                if (index <= 2) {
+                    const drumroll = document.createElement('div');
+                    drumroll.className = 'fullscreen-drumroll';
+                    
+                    if (index === 0) {
+                        drumroll.textContent = 'The team picking 1st in this years draft will be...';
+                        drumroll.style.color = '#ffd700';
+                    } else if (index === 1) {
+                        drumroll.textContent = 'The team picking 2nd in this years draft will be...';
+                        drumroll.style.color = '#c0c0c0';
+                    } else {
+                        drumroll.textContent = 'The team picking 3rd in this years draft will be...';
+                        drumroll.style.color = '#cd7f32';
+                    }
+                    
+                    animationContainer.insertBefore(drumroll, animationContainer.firstChild);
+                    
+                    setTimeout(() => {
+                        animationContainer.removeChild(drumroll);
+                        animationContainer.insertBefore(resultItem, animationContainer.firstChild);
+                        
+                        setTimeout(() => {
+                            revealNextPick(index - 1);
+                        }, 3000);
+                    }, 2000);
+                } else {
+                    animationContainer.insertBefore(resultItem, animationContainer.firstChild);
+                    
+                    setTimeout(() => {
+                        revealNextPick(index - 1);
+                    }, 5000);
+                }
+            } else {
+                const completeMsg = document.createElement('div');
+                completeMsg.className = 'fullscreen-complete';
+                completeMsg.textContent = 'Draft lottery complete!';
+                animationContainer.insertBefore(completeMsg, animationContainer.firstChild);
+                
+                updateResultsDiv(results);
+                updateFullDraftOrder(results);
+            }
+        }
     }
-    
-    // First, show the calculating message for 5 seconds
-    setTimeout(() => {
-        // Remove the calculating message
-        animationContainer.removeChild(calculatingMsg);
-        
-        // Start by revealing picks 12-9
-        revealLaterPicks();
-    }, 5000);
-    
-    console.log('Results animation started:', results);
+
+    // Start the process with the quick iterations
+    if (magicNumber > 1) {
+        runQuickIterations(0);
+    } else {
+        runFinalLottery();
+    }
 }
 
 // Helper function to update the regular results div
@@ -527,6 +582,7 @@ function updateResultsDiv(results) {
         results.forEach((team, index) => {
             const resultItem = document.createElement('div');
             resultItem.className = 'result-item';
+            resultItem.style.textAlign = 'center';
             
             // Set background color based on pick number
             if (index === 0) { // 1st pick
@@ -565,6 +621,7 @@ function updateResultsDiv(results) {
         completeMsg.textContent = 'Draft lottery complete!';
         completeMsg.style.color = '#28a745';
         completeMsg.style.border = '2px solid #28a745';
+        completeMsg.style.textAlign = 'center';
         resultsDiv.appendChild(completeMsg);
     }
 }

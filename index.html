@@ -64,10 +64,23 @@
         </section>
 
         <section class="lottery-section">
-            <button class="lottery-button" id="lotteryButton">
-                <span class="button-text">Run Lottery</span>
-                <span class="button-icon">🎲</span>
-            </button>
+            <div class="lottery-controls">
+                <div class="magic-number-input">
+                    <label for="magicNumber">Enter Magic Number (1-99):</label>
+                    <input 
+                        type="number" 
+                        id="magicNumber" 
+                        min="1" 
+                        max="99" 
+                        value="1"
+                        required
+                    >
+                </div>
+                <button class="lottery-button" id="lotteryButton">
+                    <span class="button-text">Run Lottery</span>
+                    <span class="button-icon">🎲</span>
+                </button>
+            </div>
         </section>
 
         <section class="results-section">
