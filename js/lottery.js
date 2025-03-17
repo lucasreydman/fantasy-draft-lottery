@@ -53,13 +53,14 @@ function saveTeamNames() {
 
 // Load saved pick ownership from localStorage
 function loadSavedPickOwnership() {
-    const savedPickOwnership = localStorage.getItem('lotteryPickOwnership');
-    if (savedPickOwnership) {
-        const parsedData = JSON.parse(savedPickOwnership);
+    const savedOwnership = localStorage.getItem('lotteryPickOwnership');
+    if (savedOwnership) {
+        const parsedOwnership = JSON.parse(savedOwnership);
+        // Only copy valid values (non-null)
         for (let round = 0; round < 4; round++) {
             for (let pick = 0; pick < 12; pick++) {
-                if (parsedData[round] && parsedData[round][pick] !== undefined) {
-                    pickOwnership[round][pick] = parsedData[round][pick];
+                if (parsedOwnership[round][pick] !== null) {
+                    pickOwnership[round][pick] = parsedOwnership[round][pick];
                 }
             }
         }
@@ -415,7 +416,18 @@ function runLottery() {
             if (index <= 2) {
                 const drumroll = document.createElement('div');
                 drumroll.className = 'fullscreen-drumroll';
-                drumroll.textContent = 'Drumroll please...';
+                
+                // Set text and color based on pick number
+                if (index === 0) {
+                    drumroll.textContent = 'The team picking 1st in this years draft will be...';
+                    drumroll.style.color = '#ffd700'; // Gold
+                } else if (index === 1) {
+                    drumroll.textContent = 'The team picking 2nd in this years draft will be...';
+                    drumroll.style.color = '#c0c0c0'; // Silver
+                } else {
+                    drumroll.textContent = 'The team picking 3rd in this years draft will be...';
+                    drumroll.style.color = '#cd7f32'; // Bronze
+                }
                 
                 // Insert at the beginning of the container
                 animationContainer.insertBefore(drumroll, animationContainer.firstChild);
@@ -561,6 +573,7 @@ function updateResultsDiv(results) {
 document.addEventListener('DOMContentLoaded', function() {
     createTeamInputs();
     createOddsTable();
+    loadSavedPickOwnership(); // Load saved pick ownership
     createPickOwnershipTable();
     
     // Hide the draft order section initially
