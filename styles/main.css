@@ -237,6 +237,12 @@ h2 {
     margin-top: 2rem;
 }
 
+.results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 .result-item {
     padding: 1rem;
     margin: 0.5rem 0;
@@ -244,6 +250,8 @@ h2 {
     background-color: var(--background-color);
     transition: transform 0.2s ease;
     animation: slideIn 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .reveal-animation {
@@ -251,7 +259,7 @@ h2 {
 }
 
 .result-item:hover {
-    transform: translateX(5px);
+    transform: none;
 }
 
 .result-item.first-pick {

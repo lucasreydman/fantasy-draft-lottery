@@ -232,6 +232,63 @@ function createPickOwnershipTable() {
     tableContainer.appendChild(table);
 }
 
+// Function to run a quick lottery without animation - modified for NBA-style rules
+function runQuickLottery() {
+    // Create a copy of teams for the lottery with their original indexes
+    const lotteryTeams = teams.slice(0, 8).map((team, index) => ({
+        ...team,
+        originalIndex: index // Store original index for seeding reference
+    }));
+    const results = new Array(12);
+    
+    // Store a copy of the lottery teams in their original seeding order (worst to best record)
+    const teamsInSeedingOrder = [...lotteryTeams].sort((a, b) => b.chances - a.chances);
+    
+    // Step 1: Generate top 4 picks through lottery
+    const availableTeams = [...lotteryTeams];
+    const top4Picks = [];
+    
+    // Choose top 4 picks randomly based on odds
+    for (let i = 0; i < 4; i++) {
+        const selectedIndex = getRandomTeam(availableTeams);
+        if (selectedIndex === null) {
+            console.error('Failed to select a team');
+            break;
+        }
+        const selectedTeam = availableTeams[selectedIndex];
+        top4Picks.push(selectedTeam);
+        availableTeams.splice(selectedIndex, 1);
+    }
+    
+    // Place top 4 picks at the front of results array
+    for (let i = 0; i < 4; i++) {
+        results[i] = top4Picks[i];
+    }
+    
+    // Step 2: Assign picks 5-8 based on original seeding (highest odds first)
+    // Get teams that didn't get a top 4 pick
+    const remainingTeams = teamsInSeedingOrder.filter(seedTeam => 
+        !top4Picks.some(pickedTeam => pickedTeam.originalIndex === seedTeam.originalIndex)
+    );
+    
+    // Assign picks 5-8 to remaining teams in order of original seeding (worst record first)
+    for (let i = 0; i < remainingTeams.length; i++) {
+        results[i + 4] = remainingTeams[i];
+    }
+    
+    // Step 3: Add teams 9-12 automatically (they stay in their original positions)
+    for (let i = 8; i < 12; i++) {
+        results[i] = teams[i];
+    }
+    
+    // For display purposes, remove the originalIndex property
+    return results.map(team => ({
+        name: team.name,
+        chances: team.chances
+    }));
+}
+
+// In the getRandomTeam function, make sure it handles edge cases better
 function getRandomTeam(availableTeams) {
     if (availableTeams.length === 0) {
         console.error('No teams available');
@@ -239,6 +296,13 @@ function getRandomTeam(availableTeams) {
     }
     
     const totalChances = availableTeams.reduce((sum, team) => sum + team.chances, 0);
+    
+    // Handle case where total chances is 0
+    if (totalChances <= 0) {
+        // Just pick randomly if there are no weighted chances
+        return Math.floor(Math.random() * availableTeams.length);
+    }
+    
     let random = Math.random() * totalChances;
     
     for (let i = 0; i < availableTeams.length; i++) {
@@ -308,33 +372,6 @@ function updateFullDraftOrder(lotteryResults) {
     if (draftOrderSection) {
         draftOrderSection.style.display = 'block';
     }
-}
-
-// Function to run a quick lottery without animation
-function runQuickLottery() {
-    // Create a copy of teams for the lottery
-    const lotteryTeams = teams.slice(0, 8);
-    const availableTeams = [...lotteryTeams];
-    const results = [];
-
-    // Generate top 8 picks through lottery
-    for (let i = 0; i < 8; i++) {
-        const selectedIndex = getRandomTeam(availableTeams);
-        if (selectedIndex === null) {
-            console.error('Failed to select a team');
-            break;
-        }
-        const selectedTeam = availableTeams[selectedIndex];
-        results.push(selectedTeam);
-        availableTeams.splice(selectedIndex, 1);
-    }
-
-    // Add teams 9-12 automatically
-    for (let i = 8; i < 12; i++) {
-        results.push(teams[i]);
-    }
-
-    return results;
 }
 
 // Modify the runLottery function to handle magic number with visible quick runs
@@ -458,19 +495,30 @@ function runLottery() {
 
         // Run the actual lottery
         const results = runQuickLottery();
-
+        
         // Start the reveal process after a delay
         setTimeout(() => {
             animationContainer.removeChild(calculatingMsg);
-            revealLaterPicks();
-        }, 3000);
-
-        // Define the reveal function for the final lottery
-        function revealLaterPicks() {
-            let currentIndex = 11;
             
-            function showNextLaterPick() {
-                if (currentIndex >= 8) {
+            // Start with revealing picks 12-9 (automatic)
+            revealAutomaticPicks();
+        }, 3000);
+        
+        // Step 1: Reveal automatic picks (12-9)
+        function revealAutomaticPicks() {
+            const batchHeader = document.createElement('div');
+            batchHeader.className = 'batch-header';
+            batchHeader.textContent = 'Automatic Picks';
+            batchHeader.style.fontSize = '1.8rem';
+            batchHeader.style.fontWeight = 'bold';
+            batchHeader.style.color = '#ff6b6b';
+            batchHeader.style.marginBottom = '1rem';
+            animationContainer.appendChild(batchHeader);
+            
+            let currentIndex = 11; // Start from pick 12
+            
+            function showNextPick() {
+                if (currentIndex >= 8) { // For picks 12 to 9
                     const resultItem = document.createElement('div');
                     resultItem.className = 'fullscreen-result-item';
                     resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name} (Automatic)`;
@@ -479,88 +527,397 @@ function runLottery() {
                     resultItem.style.fontWeight = 'normal';
                     resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
                     
-                    animationContainer.insertBefore(resultItem, animationContainer.firstChild);
+                    animationContainer.appendChild(resultItem);
                     
                     currentIndex--;
                     
+                    // Continue with next pick after delay
                     if (currentIndex >= 8) {
-                        setTimeout(showNextLaterPick, 2000);
+                        setTimeout(showNextPick, 1000);
                     } else {
+                        // When all automatic picks are shown, add a "next" button to continue
                         setTimeout(() => {
-                            revealNextPick(7);
-                        }, 3000);
+                            const nextButton = document.createElement('button');
+                            nextButton.textContent = 'Continue to Lottery Picks';
+                            nextButton.className = 'lottery-button';
+                            nextButton.style.margin = '2rem auto';
+                            nextButton.style.display = 'block';
+                            
+                            nextButton.addEventListener('click', () => {
+                                // Clear screen and show lottery picks 8-4
+                                animationContainer.innerHTML = '';
+                                revealMiddlePicks();
+                            });
+                            
+                            animationContainer.appendChild(nextButton);
+                        }, 1000);
                     }
                 }
             }
             
-            showNextLaterPick();
+            showNextPick();
         }
-
-        function revealNextPick(index) {
-            if (index >= 0) {
-                const resultItem = document.createElement('div');
-                resultItem.className = 'fullscreen-result-item';
-                
-                if (index === 0) {
-                    resultItem.style.backgroundColor = '#ffd700';
-                    resultItem.style.fontWeight = 'bold';
-                    resultItem.style.fontSize = '1.6rem';
-                    resultItem.style.boxShadow = '0 4px 10px rgba(255, 215, 0, 0.5)';
-                } else if (index === 1) {
-                    resultItem.style.backgroundColor = '#c0c0c0';
-                    resultItem.style.fontWeight = 'bold';
-                    resultItem.style.fontSize = '1.5rem';
-                    resultItem.style.boxShadow = '0 4px 8px rgba(192, 192, 192, 0.5)';
-                } else if (index === 2) {
-                    resultItem.style.backgroundColor = '#cd7f32';
-                    resultItem.style.fontWeight = 'bold';
-                    resultItem.style.fontSize = '1.4rem';
-                    resultItem.style.boxShadow = '0 4px 8px rgba(205, 127, 50, 0.5)';
+        
+        // Step 2: Reveal middle picks (8-5)
+        function revealMiddlePicks() {
+            const batchHeader = document.createElement('div');
+            batchHeader.className = 'batch-header';
+            batchHeader.textContent = 'Lottery Picks 8-5';
+            batchHeader.style.fontSize = '1.8rem';
+            batchHeader.style.fontWeight = 'bold';
+            batchHeader.style.color = '#4834d4';
+            batchHeader.style.marginBottom = '1rem';
+            animationContainer.appendChild(batchHeader);
+            
+            let currentIndex = 7; // Start from pick 8
+            
+            function showNextPick() {
+                if (currentIndex >= 4) { // For picks 8 to 5
+                    // Show countdown before revealing pick
+                    showCountdown(5, () => {
+                        const resultItem = document.createElement('div');
+                        resultItem.className = 'fullscreen-result-item';
+                        resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name}`;
+                        
+                        // Regular pick styling
+                        resultItem.style.backgroundColor = '#f8f9fa';
+                        resultItem.style.fontWeight = 'normal';
+                        resultItem.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+                        
+                        animationContainer.appendChild(resultItem);
+                        
+                        currentIndex--;
+                        
+                        // Continue with next pick after delay
+                        if (currentIndex >= 4) {
+                            setTimeout(showNextPick, 500);
+                        } else {
+                            // When all middle picks are shown, add a "next" button to continue
+                            setTimeout(() => {
+                                const nextButton = document.createElement('button');
+                                nextButton.textContent = 'Reveal Top 4 Picks';
+                                nextButton.className = 'lottery-button';
+                                nextButton.style.margin = '2rem auto';
+                                nextButton.style.display = 'block';
+                                
+                                nextButton.addEventListener('click', () => {
+                                    // Clear screen and show podium for top 4
+                                    animationContainer.innerHTML = '';
+                                    revealTopFour();
+                                });
+                                
+                                animationContainer.appendChild(nextButton);
+                            }, 1000);
+                        }
+                    });
+                }
+            }
+            
+            showNextPick();
+        }
+        
+        // Step 3: Reveal top 4 picks in podium style
+        function revealTopFour() {
+            // Clear any previous content
+            animationContainer.innerHTML = '';
+            
+            // Make the container much taller to accommodate everything
+            animationContainer.style.minHeight = '800px';
+            animationContainer.style.padding = '2rem';
+            
+            const batchHeader = document.createElement('div');
+            batchHeader.className = 'batch-header';
+            batchHeader.textContent = 'Top 4 Draft Picks';
+            batchHeader.style.fontSize = '2.5rem';
+            batchHeader.style.fontWeight = 'bold';
+            batchHeader.style.color = '#4834d4';
+            batchHeader.style.marginBottom = '3rem';
+            batchHeader.style.textAlign = 'center';
+            batchHeader.style.width = '100%';
+            animationContainer.appendChild(batchHeader);
+            
+            // Add a dedicated area for the drumroll message that stays in place
+            const drumrollArea = document.createElement('div');
+            drumrollArea.className = 'drumroll-area';
+            drumrollArea.style.width = '100%';
+            drumrollArea.style.height = '120px';
+            drumrollArea.style.display = 'flex';
+            drumrollArea.style.justifyContent = 'center';
+            drumrollArea.style.alignItems = 'center';
+            drumrollArea.style.margin = '2rem 0 3rem 0';
+            drumrollArea.style.position = 'relative';
+            animationContainer.appendChild(drumrollArea);
+            
+            // Create podium container with fixed dimensions - make it much larger
+            const podiumContainer = document.createElement('div');
+            podiumContainer.className = 'top-four-podium';
+            podiumContainer.style.display = 'flex';
+            podiumContainer.style.justifyContent = 'center';
+            podiumContainer.style.alignItems = 'flex-end';
+            podiumContainer.style.height = '550px'; // Increased height more
+            podiumContainer.style.margin = '0 auto 3rem auto';
+            podiumContainer.style.padding = '0';
+            podiumContainer.style.width = '100%';
+            podiumContainer.style.maxWidth = '1000px'; // Increased width
+            podiumContainer.style.position = 'relative';
+            animationContainer.appendChild(podiumContainer);
+            
+            // Create fixed positions for each podium place with more spacing
+            const positions = [
+                {order: 0, position: 3, width: 200}, // 4th place - Increased width
+                {order: 1, position: 2, width: 220}, // 3rd place - Increased width
+                {order: 2, position: 0, width: 270}, // 1st place - Increased width
+                {order: 3, position: 1, width: 250}  // 2nd place - Increased width
+            ];
+            
+            // Create empty placeholder elements to maintain layout - wider with more spacing
+            positions.forEach(pos => {
+                const placeholder = document.createElement('div');
+                placeholder.className = `podium-placeholder position-${pos.position + 1}`;
+                placeholder.style.flex = '1';
+                placeholder.style.minWidth = `${pos.width}px`;
+                placeholder.style.maxWidth = `${pos.width}px`;
+                placeholder.style.height = '10px';
+                placeholder.style.margin = '0 25px'; // Even more spacing
+                placeholder.style.opacity = '0';
+                placeholder.style.order = pos.order.toString();
+                podiumContainer.appendChild(placeholder);
+            });
+            
+            // Function to reveal each podium place with adjusted timing
+            function revealPodiumPlace(index) {
+                if (index >= positions.length) {
+                    finishReveal();
+                    return;
                 }
                 
-                resultItem.textContent = `Pick ${index + 1}: ${results[index].name}`;
+                const position = positions[index].position;
                 
-                if (index <= 2) {
-                    const drumroll = document.createElement('div');
-                    drumroll.className = 'fullscreen-drumroll';
+                // Update drumroll message
+                const drumroll = document.createElement('div');
+                drumroll.className = 'fullscreen-drumroll';
+                
+                if (position === 0) {
+                    drumroll.textContent = 'The team picking 1st in this years draft will be...';
+                    drumroll.style.color = '#ffd700';
+                } else if (position === 1) {
+                    drumroll.textContent = 'The team picking 2nd in this years draft will be...';
+                    drumroll.style.color = '#c0c0c0';
+                } else if (position === 2) {
+                    drumroll.textContent = 'The team picking 3rd in this years draft will be...';
+                    drumroll.style.color = '#cd7f32';
+                } else {
+                    drumroll.textContent = 'The team picking 4th in this years draft will be...';
+                    drumroll.style.color = '#6c5ce7';
+                }
+                
+                drumroll.style.fontSize = '2.2rem'; // Larger text
+                drumroll.style.fontWeight = 'bold';
+                drumroll.style.textAlign = 'center';
+                drumroll.style.padding = '1.5rem';
+                drumroll.style.animation = 'shake 0.5s infinite';
+                drumroll.style.width = '100%';
+                
+                // Clear previous drumroll and add new one
+                drumrollArea.innerHTML = '';
+                drumrollArea.appendChild(drumroll);
+                
+                // Longer drumroll time
+                setTimeout(() => {
+                    // Find the placeholder for this position
+                    const placeholder = document.querySelector(`.podium-placeholder.position-${position + 1}`);
                     
-                    if (index === 0) {
-                        drumroll.textContent = 'The team picking 1st in this years draft will be...';
-                        drumroll.style.color = '#ffd700';
-                    } else if (index === 1) {
-                        drumroll.textContent = 'The team picking 2nd in this years draft will be...';
-                        drumroll.style.color = '#c0c0c0';
-                    } else {
-                        drumroll.textContent = 'The team picking 3rd in this years draft will be...';
-                        drumroll.style.color = '#cd7f32';
+                    // Create podium place - much larger
+                    const podiumPlace = document.createElement('div');
+                    podiumPlace.className = 'podium-place';
+                    
+                    // Style based on position - increased heights
+                    if (position === 0) { // 1st place
+                        podiumPlace.style.height = '400px'; // Taller
+                        podiumPlace.style.backgroundColor = '#ffd700';
+                        podiumPlace.style.zIndex = '40';
+                    } else if (position === 1) { // 2nd place
+                        podiumPlace.style.height = '320px'; // Taller
+                        podiumPlace.style.backgroundColor = '#c0c0c0';
+                        podiumPlace.style.zIndex = '30';
+                    } else if (position === 2) { // 3rd place
+                        podiumPlace.style.height = '260px'; // Taller
+                        podiumPlace.style.backgroundColor = '#cd7f32';
+                        podiumPlace.style.zIndex = '20';
+                    } else { // 4th place - make it taller
+                        podiumPlace.style.height = '220px'; // Even taller
+                        podiumPlace.style.backgroundColor = '#6c5ce7';
+                        podiumPlace.style.zIndex = '10';
                     }
                     
-                    animationContainer.insertBefore(drumroll, animationContainer.firstChild);
+                    // Common styles for all podium places - larger elements
+                    podiumPlace.style.width = '100%';
+                    podiumPlace.style.display = 'flex';
+                    podiumPlace.style.flexDirection = 'column';
+                    podiumPlace.style.justifyContent = 'flex-start';
+                    podiumPlace.style.alignItems = 'center';
+                    podiumPlace.style.borderRadius = '12px 12px 0 0'; // Rounder corners
+                    podiumPlace.style.padding = '1.5rem 1rem'; // More horizontal space
+                    podiumPlace.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.3)'; // Stronger shadow
+                    podiumPlace.style.position = 'absolute';
+                    podiumPlace.style.bottom = '0';
+                    podiumPlace.style.left = placeholder.offsetLeft + 'px';
+                    podiumPlace.style.width = placeholder.offsetWidth + 'px';
+                    podiumPlace.style.animation = 'revealPodium 0.8s ease-out';
+                    podiumPlace.style.boxSizing = 'border-box'; // Ensure padding is included in width/height
                     
-                    setTimeout(() => {
-                        animationContainer.removeChild(drumroll);
-                        animationContainer.insertBefore(resultItem, animationContainer.firstChild);
-                        
-                        setTimeout(() => {
-                            revealNextPick(index - 1);
-                        }, 3000);
-                    }, 2000);
-                } else {
-                    animationContainer.insertBefore(resultItem, animationContainer.firstChild);
+                    // Position number - made smaller for 4th place
+                    const positionNumber = document.createElement('div');
+                    positionNumber.textContent = `${position + 1}`;
                     
+                    // Adjust size based on position
+                    if (position === 3) { // 4th place
+                        positionNumber.style.fontSize = '4rem';
+                        positionNumber.style.lineHeight = '1';
+                        positionNumber.style.marginBottom = '0.5rem';
+                    } else {
+                        positionNumber.style.fontSize = '5rem';
+                        positionNumber.style.marginBottom = '1rem';
+                    }
+                    
+                    positionNumber.style.fontWeight = 'bold';
+                    positionNumber.style.color = 'white';
+                    positionNumber.style.textShadow = '3px 3px 6px rgba(0, 0, 0, 0.4)';
+                    podiumPlace.appendChild(positionNumber);
+                    
+                    // Team name - ensure it's visible for all positions
+                    const teamName = document.createElement('div');
+                    teamName.textContent = results[position].name;
+                    
+                    // Adjust team name styling based on position
+                    if (position === 3) { // 4th place
+                        teamName.style.fontSize = '1.4rem';
+                        teamName.style.marginTop = '0.3rem';
+                        teamName.style.lineHeight = '1.2';
+                        teamName.style.wordBreak = 'break-word'; // Allow long names to wrap
+                        teamName.style.whiteSpace = 'normal'; // Allow text wrapping
+                        teamName.style.height = 'auto'; // Auto height based on content
+                        teamName.style.maxHeight = '6rem'; // Increased max height
+                        teamName.style.display = 'flex';
+                        teamName.style.alignItems = 'center';
+                        teamName.style.justifyContent = 'center';
+                    } else if (position === 2) { // 3rd place
+                        teamName.style.fontSize = '1.5rem';
+                        teamName.style.marginTop = '0.5rem';
+                        teamName.style.lineHeight = '1.2';
+                        teamName.style.wordBreak = 'break-word';
+                        teamName.style.whiteSpace = 'normal';
+                    } else if (position === 1) { // 2nd place
+                        teamName.style.fontSize = '1.6rem';
+                        teamName.style.marginTop = '0.8rem';
+                        teamName.style.lineHeight = '1.2';
+                        teamName.style.wordBreak = 'break-word';
+                        teamName.style.whiteSpace = 'normal';
+                    } else { // 1st place
+                        teamName.style.fontSize = '1.8rem';
+                        teamName.style.marginTop = '1rem';
+                        teamName.style.lineHeight = '1.3';
+                        teamName.style.wordBreak = 'break-word';
+                        teamName.style.whiteSpace = 'normal';
+                    }
+                    
+                    teamName.style.fontWeight = 'bold';
+                    teamName.style.color = 'white';
+                    teamName.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.4)';
+                    teamName.style.textAlign = 'center';
+                    teamName.style.width = '100%';
+                    teamName.style.padding = '0 0.5rem';
+                    podiumPlace.appendChild(teamName);
+                    
+                    // Add to podium container
+                    podiumContainer.appendChild(podiumPlace);
+                    
+                    // Continue with next position after a delay - longer pauses
                     setTimeout(() => {
-                        revealNextPick(index - 1);
-                    }, 5000);
-                }
-            } else {
+                        revealPodiumPlace(index + 1);
+                    }, 6000); // Longer delay between reveals
+                }, 3000); // Longer drumroll
+            }
+            
+            // Function to finish the reveal process
+            function finishReveal() {
+                // Clear the drumroll area
+                drumrollArea.innerHTML = '';
+                
+                // Show complete message - larger
                 const completeMsg = document.createElement('div');
                 completeMsg.className = 'fullscreen-complete';
                 completeMsg.textContent = 'Draft lottery complete!';
-                animationContainer.insertBefore(completeMsg, animationContainer.firstChild);
+                completeMsg.style.marginTop = '3rem';
+                completeMsg.style.textAlign = 'center';
+                completeMsg.style.fontSize = '2rem'; // Larger text
+                completeMsg.style.fontWeight = 'bold';
+                completeMsg.style.color = '#28a745';
+                completeMsg.style.padding = '1.5rem';
+                completeMsg.style.border = '3px solid #28a745';
+                completeMsg.style.borderRadius = '12px';
+                completeMsg.style.width = '100%';
+                completeMsg.style.maxWidth = '800px';
+                completeMsg.style.margin = '3rem auto';
+                animationContainer.appendChild(completeMsg);
                 
+                // Update the regular results div and draft order
                 updateResultsDiv(results);
                 updateFullDraftOrder(results);
+                
+                // Add view full results button - larger
+                const viewResultsBtn = document.createElement('button');
+                viewResultsBtn.textContent = 'View Full Draft Order';
+                viewResultsBtn.className = 'lottery-button';
+                viewResultsBtn.style.margin = '3rem auto';
+                viewResultsBtn.style.padding = '1.2rem 2.5rem';
+                viewResultsBtn.style.fontSize = '1.5rem';
+                viewResultsBtn.style.display = 'block';
+                
+                viewResultsBtn.addEventListener('click', () => {
+                    document.body.removeChild(fullscreenView);
+                });
+                
+                animationContainer.appendChild(viewResultsBtn);
             }
+            
+            // Start the reveal process
+            setTimeout(() => {
+                revealPodiumPlace(0);
+            }, 1000); // Short delay before starting
+        }
+        
+        // Countdown timer function
+        function showCountdown(seconds, callback) {
+            const countdownElement = document.createElement('div');
+            countdownElement.className = 'fullscreen-countdown';
+            countdownElement.textContent = `Next pick in: ${seconds}`;
+            countdownElement.style.fontSize = '1.5rem';
+            countdownElement.style.color = '#ffffff';
+            countdownElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            countdownElement.style.padding = '0.5rem 1rem';
+            countdownElement.style.borderRadius = '8px';
+            countdownElement.style.position = 'fixed';
+            countdownElement.style.bottom = '20px';
+            countdownElement.style.right = '20px';
+            countdownElement.style.zIndex = '1100';
+            countdownElement.style.animation = 'pulse 1s infinite alternate';
+            
+            document.body.appendChild(countdownElement);
+            
+            let remainingSeconds = seconds;
+            
+            const interval = setInterval(() => {
+                remainingSeconds--;
+                
+                if (remainingSeconds > 0) {
+                    countdownElement.textContent = `Next pick in: ${remainingSeconds}`;
+                } else {
+                    clearInterval(interval);
+                    document.body.removeChild(countdownElement);
+                    callback();
+                }
+            }, 1000);
         }
     }
 
@@ -572,58 +929,104 @@ function runLottery() {
     }
 }
 
-// Helper function to update the regular results div
+// Completely override the order of display in the results div to ensure consistency
 function updateResultsDiv(results) {
     const resultsDiv = document.getElementById('results');
-    if (resultsDiv) {
-        resultsDiv.innerHTML = '';
-        resultsDiv.style.display = 'block';
+    if (!resultsDiv) return;
+    
+    // Clear existing content
+    resultsDiv.innerHTML = '';
+    resultsDiv.style.display = 'block';
+    
+    // Force inline styles to override any potential CSS conflicts
+    resultsDiv.style.display = 'block';
+    
+    // Create a fresh container with explicit styles
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.width = '100%';
+    container.style.gap = '10px';
+    container.style.margin = '0 auto';
+    container.style.padding = '0';
+    container.style.boxSizing = 'border-box';
+    container.style.position = 'relative'; // Establish a positioning context
+    
+    // Ensure CSS specificity by using !important for critical styles
+    container.setAttribute('style', 
+        'display: flex !important;' +
+        'flex-direction: column !important;' + 
+        'width: 100% !important;' +
+        'gap: 10px !important;' +
+        'margin: 0 auto !important;' +
+        'padding: 0 !important;' + 
+        'box-sizing: border-box !important;' +
+        'position: relative !important;');
+    
+    // Add the results to the container in the intended order (1 to 12)
+    for (let i = 0; i < results.length; i++) {
+        const resultItem = document.createElement('div');
+        resultItem.className = 'result-item';
         
-        results.forEach((team, index) => {
-            const resultItem = document.createElement('div');
-            resultItem.className = 'result-item';
-            resultItem.style.textAlign = 'center';
-            
-            // Set background color based on pick number
-            if (index === 0) { // 1st pick
-                resultItem.style.backgroundColor = '#ffd700'; // Gold
-                resultItem.style.fontWeight = 'bold';
-                resultItem.style.fontSize = '1.3rem';
-                resultItem.style.boxShadow = '0 4px 6px rgba(255, 215, 0, 0.3)';
-            } else if (index === 1) { // 2nd pick
-                resultItem.style.backgroundColor = '#c0c0c0'; // Silver
-                resultItem.style.fontWeight = 'bold';
-                resultItem.style.fontSize = '1.2rem';
-                resultItem.style.boxShadow = '0 4px 6px rgba(192, 192, 192, 0.3)';
-            } else if (index === 2) { // 3rd pick
-                resultItem.style.backgroundColor = '#cd7f32'; // Bronze
-                resultItem.style.fontWeight = 'bold';
-                resultItem.style.fontSize = '1.1rem';
-                resultItem.style.boxShadow = '0 4px 6px rgba(205, 127, 50, 0.3)';
-            } else if (index >= 8) { // Picks 9-12 (automatic)
-                resultItem.style.backgroundColor = '#ffcccb'; // Light red
-                resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
-            }
-            
-            // Add text content with automatic label for picks 9-12
-            if (index >= 8) {
-                resultItem.textContent = `Pick ${index + 1}: ${team.name} (Automatic)`;
-            } else {
-                resultItem.textContent = `Pick ${index + 1}: ${team.name}`;
-            }
-            
-            resultsDiv.appendChild(resultItem);
-        });
+        // Apply explicit inline styles
+        resultItem.style.width = '100%';
+        resultItem.style.boxSizing = 'border-box';
+        resultItem.style.padding = '1rem';
+        resultItem.style.margin = '0 0 10px 0';
+        resultItem.style.borderRadius = '8px';
+        resultItem.style.textAlign = 'center';
+        resultItem.style.position = 'relative';
+        resultItem.style.zIndex = '1';
+        resultItem.style.transform = 'none';
         
-        // Add a "Draft complete!" message
-        const completeMsg = document.createElement('div');
-        completeMsg.className = 'complete-message';
-        completeMsg.textContent = 'Draft lottery complete!';
-        completeMsg.style.color = '#28a745';
-        completeMsg.style.border = '2px solid #28a745';
-        completeMsg.style.textAlign = 'center';
-        resultsDiv.appendChild(completeMsg);
+        // Set background color based on pick number
+        if (i === 0) { // 1st pick
+            resultItem.style.backgroundColor = '#ffd700'; // Gold
+            resultItem.style.fontWeight = 'bold';
+            resultItem.style.fontSize = '1.3rem';
+            resultItem.style.boxShadow = '0 4px 6px rgba(255, 215, 0, 0.3)';
+        } else if (i === 1) { // 2nd pick
+            resultItem.style.backgroundColor = '#c0c0c0'; // Silver
+            resultItem.style.fontWeight = 'bold';
+            resultItem.style.fontSize = '1.2rem';
+            resultItem.style.boxShadow = '0 4px 6px rgba(192, 192, 192, 0.3)';
+        } else if (i === 2) { // 3rd pick
+            resultItem.style.backgroundColor = '#cd7f32'; // Bronze
+            resultItem.style.fontWeight = 'bold';
+            resultItem.style.fontSize = '1.1rem';
+            resultItem.style.boxShadow = '0 4px 6px rgba(205, 127, 50, 0.3)';
+        } else if (i >= 8) { // Picks 9-12 (automatic)
+            resultItem.style.backgroundColor = '#ffcccb'; // Light red
+            resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
+        }
+        
+        // Add text content with automatic label for picks 9-12
+        if (i >= 8) {
+            resultItem.textContent = `Pick ${i + 1}: ${results[i].name} (Automatic)`;
+        } else {
+            resultItem.textContent = `Pick ${i + 1}: ${results[i].name}`;
+        }
+        
+        // Append to the container in sequence
+        container.appendChild(resultItem);
     }
+    
+    // Add the container to the results div
+    resultsDiv.appendChild(container);
+    
+    // Add the completion message
+    const completeMsg = document.createElement('div');
+    completeMsg.className = 'complete-message';
+    completeMsg.textContent = 'Draft lottery complete!';
+    completeMsg.style.color = '#28a745';
+    completeMsg.style.border = '2px solid #28a745';
+    completeMsg.style.textAlign = 'center';
+    completeMsg.style.padding = '1rem';
+    completeMsg.style.marginTop = '1rem';
+    completeMsg.style.borderRadius = '8px';
+    completeMsg.style.fontWeight = 'bold';
+    
+    resultsDiv.appendChild(completeMsg);
 }
 
 // Initialize the page
@@ -641,4 +1044,219 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Make sure the function is available globally
-window.runLottery = runLottery; 
+window.runLottery = runLottery;
+
+// Add CSS for the countdown timer to the styles block at the end of the file
+const styleElement = document.createElement('style');
+styleElement.textContent = `
+    .fullscreen-countdown {
+        font-size: 1.5rem;
+        color: #ffffff;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1100;
+        animation: pulse 1s infinite alternate;
+    }
+    
+    .lottery-animation-container {
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        min-height: 400px;
+        padding: 0.8rem;
+        overflow-y: auto;
+        max-height: 90vh;
+        gap: 0.3rem;
+    }
+    
+    .fullscreen-result-item {
+        width: 100%;
+        max-width: 800px;
+        padding: 0.5rem;
+        margin: 0.1rem 0;
+        border-radius: 10px;
+        background-color: var(--background-color);
+        transition: all 0.3s ease;
+        font-size: 1.2rem;
+        text-align: center;
+        animation: slideInFromRight 0.8s ease;
+    }
+    
+    .fullscreen-drumroll,
+    .fullscreen-calculating,
+    .fullscreen-complete {
+        width: 100%;
+        max-width: 800px;
+        z-index: 10;
+    }
+    
+    @keyframes slideInFromRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes pulse {
+        from { opacity: 0.8; }
+        to { opacity: 1; }
+    }
+`;
+document.head.appendChild(styleElement);
+
+// Update podium animations and styles
+const podiumStyleElement = document.createElement('style');
+podiumStyleElement.textContent = `
+    @keyframes revealPodium {
+        0% {
+            transform: translateY(100px);
+            opacity: 0;
+        }
+        60% {
+            transform: translateY(-20px);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes shake {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        50% { transform: translateX(0); }
+        75% { transform: translateX(5px); }
+        100% { transform: translateX(0); }
+    }
+    
+    .top-four-podium {
+        perspective: 800px;
+    }
+    
+    .podium-place {
+        transition: all 0.3s ease;
+    }
+    
+    .podium-place:hover {
+        transform: translateY(-15px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    
+    /* Styles for fullscreen modal */
+    .lottery-fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        z-index: 9999;
+        overflow: hidden;
+    }
+    
+    /* Added fixed container styles */
+    .fullscreen-drumroll {
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    
+    .lottery-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 3rem;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        background-color: white;
+    }
+    
+    .lottery-title {
+        font-size: 3rem;
+        color: #4834d4;
+        margin-bottom: 3rem;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+    }
+    
+    .lottery-animation-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        width: 100%;
+        min-height: 800px;
+        padding: 2rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background-color: white;
+    }
+    
+    /* Button styling */
+    .lottery-button {
+        padding: 1.2rem 2.5rem;
+        font-size: 1.5rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #4834d4 0%, #6c5ce7 100%);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 15px rgba(72, 52, 212, 0.4);
+    }
+    
+    .lottery-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(72, 52, 212, 0.5);
+    }
+    
+    .close-button {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        font-size: 2.5rem;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    
+    .close-button:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+    
+    /* Add these styles for better spacing with long team names */
+    .podium-place {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-wrap: break-word;
+    }
+    
+    /* Ensure team name containers don't break layout */
+    .fullscreen-result-item {
+        overflow-wrap: break-word;
+        word-break: break-word;
+        white-space: normal !important;
+    }
+`;
+document.head.appendChild(podiumStyleElement); 
