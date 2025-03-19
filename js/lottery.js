@@ -489,20 +489,39 @@ function runLottery() {
         const calculatingMsg = document.createElement('div');
         calculatingMsg.className = 'fullscreen-calculating';
         calculatingMsg.textContent = 'Calculating the FINAL draft order...';
-        calculatingMsg.style.color = '#ffd700';
-        calculatingMsg.style.fontSize = '2rem';
+        calculatingMsg.style.color = '#000000'; // Change to black text
+        calculatingMsg.style.fontSize = '2.5rem';
+        calculatingMsg.style.fontWeight = 'bold';
+        calculatingMsg.style.position = 'absolute';
+        calculatingMsg.style.top = '50%';
+        calculatingMsg.style.left = '50%';
+        calculatingMsg.style.transform = 'translate(-50%, -50%)';
+        calculatingMsg.style.width = '100%';
+        calculatingMsg.style.textAlign = 'center';
+        calculatingMsg.style.animation = 'calculatingAnimation 2s ease-in-out infinite';
         animationContainer.appendChild(calculatingMsg);
+        
+        // Add animation keyframes for the calculating message
+        const calcAnimStyle = document.createElement('style');
+        calcAnimStyle.textContent = `
+            @keyframes calculatingAnimation {
+                0% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
+                50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+                100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
+            }
+        `;
+        document.head.appendChild(calcAnimStyle);
 
         // Run the actual lottery
         const results = runQuickLottery();
         
-        // Start the reveal process after a delay
+        // Start the reveal process after a longer delay (5 seconds)
         setTimeout(() => {
             animationContainer.removeChild(calculatingMsg);
             
             // Start with revealing picks 12-9 (automatic)
             revealAutomaticPicks();
-        }, 3000);
+        }, 5000);
         
         // Step 1: Reveal automatic picks (12-9)
         function revealAutomaticPicks() {
@@ -521,19 +540,20 @@ function runLottery() {
                 if (currentIndex >= 8) { // For picks 12 to 9
                     const resultItem = document.createElement('div');
                     resultItem.className = 'fullscreen-result-item';
-                    resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name} (Automatic)`;
+                    resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name}`;
                     
                     resultItem.style.backgroundColor = '#ffcccb';
                     resultItem.style.fontWeight = 'normal';
                     resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
                     
-                    animationContainer.appendChild(resultItem);
+                    // Insert at the beginning rather than appending to show highest pick at top
+                    animationContainer.insertBefore(resultItem, animationContainer.firstChild.nextSibling);
                     
                     currentIndex--;
                     
                     // Continue with next pick after delay
                     if (currentIndex >= 8) {
-                        setTimeout(showNextPick, 1000);
+                        setTimeout(showNextPick, 800);
                     } else {
                         // When all automatic picks are shown, add a "next" button to continue
                         setTimeout(() => {
@@ -573,8 +593,8 @@ function runLottery() {
             
             function showNextPick() {
                 if (currentIndex >= 4) { // For picks 8 to 5
-                    // Show countdown before revealing pick
-                    showCountdown(5, () => {
+                    // Show pick timer before revealing pick - standardized to 10 seconds
+                    showPickTimer(10, () => {
                         const resultItem = document.createElement('div');
                         resultItem.className = 'fullscreen-result-item';
                         resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name}`;
@@ -584,7 +604,8 @@ function runLottery() {
                         resultItem.style.fontWeight = 'normal';
                         resultItem.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
                         
-                        animationContainer.appendChild(resultItem);
+                        // Insert at the beginning rather than appending to show highest pick at top
+                        animationContainer.insertBefore(resultItem, animationContainer.firstChild.nextSibling);
                         
                         currentIndex--;
                         
@@ -693,37 +714,46 @@ function runLottery() {
                 
                 const position = positions[index].position;
                 
-                // Update drumroll message
-                const drumroll = document.createElement('div');
-                drumroll.className = 'fullscreen-drumroll';
-                
-                if (position === 0) {
-                    drumroll.textContent = 'The team picking 1st in this years draft will be...';
-                    drumroll.style.color = '#ffd700';
-                } else if (position === 1) {
-                    drumroll.textContent = 'The team picking 2nd in this years draft will be...';
-                    drumroll.style.color = '#c0c0c0';
-                } else if (position === 2) {
-                    drumroll.textContent = 'The team picking 3rd in this years draft will be...';
-                    drumroll.style.color = '#cd7f32';
+                // Skip drumroll and timer for 2nd pick (position 1)
+                if (position !== 1) {
+                    // Update drumroll message - only for positions other than 2nd pick
+                    const drumroll = document.createElement('div');
+                    drumroll.className = 'fullscreen-drumroll';
+                    
+                    if (position === 0) {
+                        drumroll.textContent = 'The team picking 1st in this years draft will be...';
+                        drumroll.style.color = '#ffd700';
+                    } else if (position === 2) {
+                        drumroll.textContent = 'The team picking 3rd in this years draft will be...';
+                        drumroll.style.color = '#cd7f32';
+                    } else {
+                        drumroll.textContent = 'The team picking 4th in this years draft will be...';
+                        drumroll.style.color = '#6c5ce7';
+                    }
+                    
+                    drumroll.style.fontSize = '2.2rem'; // Larger text
+                    drumroll.style.fontWeight = 'bold';
+                    drumroll.style.textAlign = 'center';
+                    drumroll.style.padding = '1.5rem';
+                    drumroll.style.animation = 'shake 0.5s infinite';
+                    drumroll.style.width = '100%';
+                    
+                    // Clear previous drumroll and add new one
+                    drumrollArea.innerHTML = '';
+                    drumrollArea.appendChild(drumroll);
+                    
+                    // Standardize all countdowns to 10 seconds for consistency
+                    showPickTimer(10, () => {
+                        revealPodiumPosition(position);
+                    });
                 } else {
-                    drumroll.textContent = 'The team picking 4th in this years draft will be...';
-                    drumroll.style.color = '#6c5ce7';
+                    // For 2nd pick, just clear drumroll area and reveal immediately
+                    drumrollArea.innerHTML = '';
+                    revealPodiumPosition(position);
                 }
                 
-                drumroll.style.fontSize = '2.2rem'; // Larger text
-                drumroll.style.fontWeight = 'bold';
-                drumroll.style.textAlign = 'center';
-                drumroll.style.padding = '1.5rem';
-                drumroll.style.animation = 'shake 0.5s infinite';
-                drumroll.style.width = '100%';
-                
-                // Clear previous drumroll and add new one
-                drumrollArea.innerHTML = '';
-                drumrollArea.appendChild(drumroll);
-                
-                // Longer drumroll time
-                setTimeout(() => {
+                // Helper function to reveal a podium position
+                function revealPodiumPosition(position) {
                     // Find the placeholder for this position
                     const placeholder = document.querySelector(`.podium-placeholder.position-${position + 1}`);
                     
@@ -832,11 +862,18 @@ function runLottery() {
                     // Add to podium container
                     podiumContainer.appendChild(podiumPlace);
                     
-                    // Continue with next position after a delay - longer pauses
+                    // Continue with next position after a delay
+                    let nextDelay = 2000; // Default delay
+                    
+                    // Special case: If we just showed the 1st pick, show 2nd pick immediately after a short delay
+                    if (position === 0) {
+                        nextDelay = 1000; // Shorter delay for 2nd pick after 1st
+                    }
+                    
                     setTimeout(() => {
                         revealPodiumPlace(index + 1);
-                    }, 6000); // Longer delay between reveals
-                }, 3000); // Longer drumroll
+                    }, nextDelay);
+                }
             }
             
             // Function to finish the reveal process
@@ -1000,12 +1037,8 @@ function updateResultsDiv(results) {
             resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
         }
         
-        // Add text content with automatic label for picks 9-12
-        if (i >= 8) {
-            resultItem.textContent = `Pick ${i + 1}: ${results[i].name} (Automatic)`;
-        } else {
-            resultItem.textContent = `Pick ${i + 1}: ${results[i].name}`;
-        }
+        // Add text content without automatic label for picks 9-12
+        resultItem.textContent = `Pick ${i + 1}: ${results[i].name}`;
         
         // Append to the container in sequence
         container.appendChild(resultItem);
@@ -1064,7 +1097,7 @@ styleElement.textContent = `
     
     .lottery-animation-container {
         display: flex;
-        flex-direction: column-reverse;
+        flex-direction: column;
         align-items: center;
         min-height: 400px;
         padding: 0.8rem;
@@ -1259,4 +1292,100 @@ podiumStyleElement.textContent = `
         white-space: normal !important;
     }
 `;
-document.head.appendChild(podiumStyleElement); 
+document.head.appendChild(podiumStyleElement);
+
+// Create a centralized pick timer function
+function showPickTimer(seconds, callback) {
+    // Create timer container that's more prominently displayed in the center
+    const timerContainer = document.createElement('div');
+    timerContainer.className = 'pick-timer-container';
+    timerContainer.style.display = 'flex';
+    timerContainer.style.flexDirection = 'column';
+    timerContainer.style.alignItems = 'center';
+    timerContainer.style.justifyContent = 'center';
+    timerContainer.style.width = '180px';
+    timerContainer.style.height = '180px';
+    timerContainer.style.borderRadius = '50%';
+    timerContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    timerContainer.style.color = '#ffffff';
+    timerContainer.style.position = 'fixed';
+    timerContainer.style.top = '50%';
+    timerContainer.style.left = '50%';
+    timerContainer.style.transform = 'translate(-50%, -50%)';
+    timerContainer.style.zIndex = '10000'; // Ensure this is higher than any other elements
+    timerContainer.style.boxShadow = '0 0 30px rgba(255, 255, 255, 0.5)';
+    
+    // Add text label
+    const timerLabel = document.createElement('div');
+    timerLabel.textContent = 'Revealing in';
+    timerLabel.style.fontSize = '1.2rem';
+    timerLabel.style.marginBottom = '0.5rem';
+    timerContainer.appendChild(timerLabel);
+    
+    // Add seconds display
+    const timerDisplay = document.createElement('div');
+    timerDisplay.textContent = seconds.toString();
+    timerDisplay.style.fontSize = '4rem';
+    timerDisplay.style.fontWeight = 'bold';
+    timerContainer.appendChild(timerDisplay);
+    
+    // Append to fullscreen view instead of body to ensure it's displayed in the modal context
+    const fullscreenView = document.querySelector('.lottery-fullscreen');
+    fullscreenView.appendChild(timerContainer);
+    
+    let remainingSeconds = seconds;
+    
+    // Add animation for the countdown
+    timerContainer.style.animation = 'pulse 1s infinite alternate';
+    
+    const interval = setInterval(() => {
+        remainingSeconds--;
+        
+        if (remainingSeconds > 0) {
+            timerDisplay.textContent = remainingSeconds.toString();
+            // Update color as time gets lower
+            if (remainingSeconds <= 3) {
+                timerDisplay.style.color = '#ff6b6b';
+                timerContainer.style.animation = 'pulse 0.5s infinite alternate';
+            }
+        } else {
+            clearInterval(interval);
+            fullscreenView.removeChild(timerContainer);
+            callback();
+        }
+    }, 1000);
+}
+
+// Add CSS styles for the pick timer
+const timerStyleElement = document.createElement('style');
+timerStyleElement.textContent = `
+    /* Pick timer styles */
+    @keyframes pulse {
+        from { 
+            transform: translate(-50%, -50%) scale(0.95);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+        }
+        to { 
+            transform: translate(-50%, -50%) scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.7);
+        }
+    }
+    
+    .pick-timer-container {
+        animation: pulse 1s infinite alternate;
+        pointer-events: none; /* Allow clicking through the timer */
+    }
+    
+    /* Ensure the fullscreen container doesn't block the timer */
+    .lottery-fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        z-index: 9999;
+        overflow: hidden;
+    }
+`;
+document.head.appendChild(timerStyleElement); 
