@@ -3,16 +3,29 @@ console.log('Lottery.js loaded');
 
 // Define the teams and their chances
 const teams = [
-    { name: "Team 1", chances: 150 },
-    { name: "Team 2", chances: 150 },
-    { name: "Team 3", chances: 150 },
-    { name: "Team 4", chances: 150 },
-    { name: "Team 5", chances: 40 },
-    { name: "Team 6", chances: 30 },
-    { name: "Team 7", chances: 0 },
-    { name: "Team 8", chances: 0 },
-    { name: "Team 9", chances: 0 },
-    { name: "Team 10", chances: 0 }
+    { name: "Bradley's Bandits", chances: 150 },
+    { name: "Buttar's Barbarians", chances: 150 },
+    { name: "Cyr's Beers", chances: 150 },
+    { name: "Darcy's Demons", chances: 150 },
+    { name: "Lu's Lazers", chances: 40 },
+    { name: "Moe's Hoes", chances: 30 },
+    { name: "Sith's Nips", chances: 0 },
+    { name: "Sleepy's Steppaz", chances: 0 },
+    { name: "Teezy's Turtles", chances: 0 },
+    { name: "Zims Sims", chances: 0 }
+];
+
+const TEAM_NAME_OPTIONS = [
+    "Bradley's Bandits",
+    "Buttar's Barbarians",
+    "Cyr's Beers",
+    "Darcy's Demons",
+    "Lu's Lazers",
+    "Moe's Hoes",
+    "Sith's Nips",
+    "Sleepy's Steppaz",
+    "Teezy's Turtles",
+    "Zims Sims"
 ];
 
 // Define the odds for each team at each position
@@ -76,6 +89,19 @@ function createTeamInputs() {
     // Load saved team names before creating inputs
     loadSavedTeamNames();
 
+    // Ensure the datalist with preset options exists once
+    let datalist = document.getElementById('teamNameOptions');
+    if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = 'teamNameOptions';
+        TEAM_NAME_OPTIONS.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            datalist.appendChild(option);
+        });
+        document.body.appendChild(datalist);
+    }
+
     teams.forEach((team, index) => {
         const row = document.createElement('div');
         row.className = 'team-input-row';
@@ -85,8 +111,9 @@ function createTeamInputs() {
         
         const input = document.createElement('input');
         input.type = 'text';
-        input.value = team.name !== `Team ${index + 1}` ? team.name : '';
-        input.placeholder = 'Enter Name...';
+        input.setAttribute('list', 'teamNameOptions');
+        input.value = team.name && !team.name.startsWith('Team ') ? team.name : '';
+        input.placeholder = 'Select Team...';
         
         // Save team name when input changes
         input.addEventListener('input', function() {
@@ -116,7 +143,8 @@ function createOddsTable() {
         // Add odds cells
         teamOdds.forEach(odd => {
             const cell = document.createElement('td');
-            cell.textContent = odd > 0 ? `${odd.toFixed(1)}%` : '-';
+            const displayValue = typeof odd === 'number' ? `${odd.toFixed(1)}%` : '0.0%';
+            cell.textContent = displayValue;
             row.appendChild(cell);
         });
 
