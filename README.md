@@ -19,7 +19,7 @@ A dynamic web-based lottery simulator for fantasy sports draft order determinati
 
 ### Pick Trading
 - Full pick ownership management system
-- Trade tracking for all 4 rounds
+- Trade tracking for all 3 rounds
 - Ability to assign picks to different teams
 - Automatic saving of pick ownership data
 
@@ -58,7 +58,7 @@ The magic number functionality allows you to:
 3. Enter a magic number (1-99) to determine the number of simulations
 4. Click "Run Lottery" to start the lottery process
 5. Watch the simulation results and final lottery reveal
-6. View the complete draft order for all 4 rounds
+6. View the complete draft order for all 3 rounds
 
 ## Data Persistence
 

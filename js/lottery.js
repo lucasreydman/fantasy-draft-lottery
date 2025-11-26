@@ -26,7 +26,7 @@ const odds = [
 ];
 
 // Initialize pick ownership data structure
-const pickOwnership = Array(4).fill().map(() => Array(10).fill().map(() => null));
+const pickOwnership = Array(3).fill().map(() => Array(10).fill().map(() => null));
 
 // Load saved team names from localStorage
 function loadSavedTeamNames() {
@@ -53,7 +53,7 @@ function loadSavedPickOwnership() {
     if (savedOwnership) {
         const parsedOwnership = JSON.parse(savedOwnership);
         // Only copy valid values (non-null)
-        for (let round = 0; round < 4; round++) {
+        for (let round = 0; round < 3; round++) {
             for (let pick = 0; pick < 10; pick++) {
                 if (parsedOwnership[round][pick] !== null) {
                     pickOwnership[round][pick] = parsedOwnership[round][pick];
@@ -159,7 +159,7 @@ function createPickOwnershipTable() {
     const tbody = document.createElement('tbody');
     
     // For each round
-    for (let round = 0; round < 4; round++) {
+    for (let round = 0; round < 3; round++) {
         // Add round header
         const roundHeaderRow = document.createElement('tr');
         roundHeaderRow.className = 'round-header';
@@ -322,7 +322,7 @@ function updateFullDraftOrder(lotteryResults) {
     fullDraftOrderDiv.innerHTML = '';
     
     // Create a container for each round
-    for (let round = 0; round < 4; round++) {
+    for (let round = 0; round < 3; round++) {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'draft-round';
         
