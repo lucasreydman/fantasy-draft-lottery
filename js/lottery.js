@@ -464,11 +464,60 @@ function runQuickLottery() {
         results[i] = teams[i];
     }
     
-    // For display purposes, remove the originalIndex property
-    return results.map(team => ({
-        name: team.name,
-        chances: team.chances
-    }));
+    // Preserve the originalIndex/seed so we can detect jumps later
+    return results.map(team => {
+        const teamIndex = typeof team.originalIndex === 'number'
+            ? team.originalIndex
+            : teams.findIndex(t => t.name === team.name);
+        
+        return {
+            name: team.name,
+            chances: team.chances,
+            originalIndex: teamIndex
+        };
+    });
+}
+
+function analyzeLotteryJumps(results) {
+    const jumpers = [];
+    const fallers = [];
+    const TOP_FOUR_SEED_MAX = 3;
+    
+    results.forEach((team, index) => {
+        if (!team || typeof team.originalIndex !== 'number') {
+            return;
+        }
+        
+        if (index < 4 && team.originalIndex > TOP_FOUR_SEED_MAX) {
+            jumpers.push({
+                team,
+                pick: index + 1,
+                fromSeed: team.originalIndex + 1
+            });
+        }
+        
+        if ((index === 4 || index === 5) && team.originalIndex <= TOP_FOUR_SEED_MAX) {
+            fallers.push({
+                team,
+                pick: index + 1,
+                fromSeed: team.originalIndex + 1
+            });
+        }
+    });
+    
+    const jumpersByPick = new Map();
+    jumpers.forEach(entry => jumpersByPick.set(entry.pick, entry));
+    
+    const fallersByPick = new Map();
+    fallers.forEach(entry => fallersByPick.set(entry.pick, entry));
+    
+    return {
+        jumpers,
+        fallers,
+        jumpersByPick,
+        fallersByPick,
+        hasChaos: jumpers.length > 0 || fallers.length > 0
+    };
 }
 
 // In the getRandomTeam function, make sure it handles edge cases better
@@ -702,6 +751,7 @@ function runLottery() {
 
         // Run the actual lottery
         const results = runQuickLottery();
+        const jumpAnalysis = analyzeLotteryJumps(results);
         const PICK_DELAY_MS = 3000;
         const PICK_DELAY_SECONDS = PICK_DELAY_MS / 1000;
         
@@ -712,6 +762,26 @@ function runLottery() {
             // Start with revealing picks 10-5 (automatic)
             revealAutomaticPicks();
         }, 5000);
+        
+        function createChaosBanner(message) {
+            const banner = document.createElement('div');
+            banner.className = 'chaos-banner';
+            banner.textContent = message;
+            banner.style.background = 'linear-gradient(90deg, #ff6b6b, #feca57)';
+            banner.style.color = '#1b1b1b';
+            banner.style.padding = '0.75rem 1.25rem';
+            banner.style.borderRadius = '999px';
+            banner.style.fontWeight = 'bold';
+            banner.style.textAlign = 'center';
+            banner.style.margin = '0 auto 1rem auto';
+            banner.style.display = 'inline-flex';
+            banner.style.alignItems = 'center';
+            banner.style.justifyContent = 'center';
+            banner.style.gap = '0.5rem';
+            banner.style.boxShadow = '0 8px 20px rgba(255, 107, 107, 0.4)';
+            banner.style.animation = 'pulseGlow 1.2s ease-in-out infinite';
+            return banner;
+        }
         
         // Step 1: Reveal automatic picks (10-5)
         function revealAutomaticPicks() {
@@ -726,6 +796,14 @@ function runLottery() {
             batchHeader.style.marginBottom = '1rem';
             animationContainer.appendChild(batchHeader);
             
+            if (jumpAnalysis.fallers.length > 0) {
+                const fallMessage = jumpAnalysis.fallers
+                    .map(faller => `${faller.team.name} slid from the ${formatOrdinal(faller.fromSeed)} seed to Pick ${faller.pick}`)
+                    .join(' • ');
+                const banner = createChaosBanner(`Upset Alert! ${fallMessage}`);
+                animationContainer.appendChild(banner);
+            }
+            
             const picksWrapper = document.createElement('div');
             picksWrapper.className = 'automatic-picks-wrapper';
             animationContainer.appendChild(picksWrapper);
@@ -736,7 +814,8 @@ function runLottery() {
                 if (currentIndex >= 4) { // For picks 10 to 5
                     const resultItem = document.createElement('div');
                     resultItem.className = 'fullscreen-result-item';
-                    resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name}`;
+                    const pickNumber = currentIndex + 1;
+                    resultItem.textContent = `Pick ${pickNumber}: ${results[currentIndex].name}`;
                     
                     if (currentIndex >= 6) {
                         resultItem.style.backgroundColor = '#ffcccb';
@@ -746,6 +825,22 @@ function runLottery() {
                         resultItem.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
                     }
                     resultItem.style.fontWeight = 'normal';
+                    
+                    const fallInfo = jumpAnalysis.fallersByPick.get(pickNumber);
+                    if (fallInfo) {
+                        resultItem.style.border = '3px solid #ff6b6b';
+                        resultItem.style.position = 'relative';
+                        resultItem.style.overflow = 'hidden';
+                        
+                        const chaosNote = document.createElement('div');
+                        chaosNote.textContent = `Shock drop! ${fallInfo.team.name} fell from the ${formatOrdinal(fallInfo.fromSeed)} seed.`;
+                        chaosNote.style.marginTop = '0.5rem';
+                        chaosNote.style.fontWeight = 'bold';
+                        chaosNote.style.color = '#c0392b';
+                        chaosNote.style.fontSize = '1rem';
+                        chaosNote.style.animation = 'shake 0.4s infinite';
+                        resultItem.appendChild(chaosNote);
+                    }
                     
                     // Insert at the top of the list (right below the header)
                     if (picksWrapper.firstChild) {
@@ -857,6 +952,8 @@ function runLottery() {
                 }
                 
                 const position = positions[index].position;
+                const pickNumber = position + 1;
+                const jumperInfo = jumpAnalysis.jumpersByPick.get(pickNumber);
                 
                 // Update drumroll message for the current position
                 const drumroll = document.createElement('div');
@@ -883,6 +980,17 @@ function runLottery() {
                 drumroll.style.animation = 'shake 0.5s infinite';
                 drumroll.style.width = '100%';
                 
+                if (jumperInfo) {
+                    const chaosLine = document.createElement('div');
+                    chaosLine.textContent = `UPSET ALERT: ${jumperInfo.team.name} jumps from the ${formatOrdinal(jumperInfo.fromSeed)} seed!`;
+                    chaosLine.style.marginTop = '0.75rem';
+                    chaosLine.style.fontSize = '1.4rem';
+                    chaosLine.style.color = '#ffeaa7';
+                    chaosLine.style.fontWeight = 'bold';
+                    chaosLine.style.animation = 'pulse 0.8s infinite alternate';
+                    drumroll.appendChild(chaosLine);
+                }
+                
                 // Clear previous drumroll and add new one
                 drumrollArea.innerHTML = '';
                 drumrollArea.appendChild(drumroll);
@@ -894,6 +1002,7 @@ function runLottery() {
                 
                 // Helper function to reveal a podium position
                 function revealPodiumPosition(position) {
+                    const jumperHighlight = jumpAnalysis.jumpersByPick.get(position + 1);
                     // Find the placeholder for this position
                     const placeholder = document.querySelector(`.podium-placeholder.position-${position + 1}`);
                     
@@ -1001,6 +1110,21 @@ function runLottery() {
                     
                     // Add to podium container
                     podiumContainer.appendChild(podiumPlace);
+                    
+                    if (jumperHighlight) {
+                        podiumPlace.style.boxShadow = '0 0 40px rgba(255, 215, 0, 0.85)';
+                        const chaosBadge = document.createElement('div');
+                        chaosBadge.textContent = `Seed ${formatOrdinal(jumperHighlight.fromSeed)} leaps into Pick ${position + 1}!`;
+                        chaosBadge.style.marginTop = '1rem';
+                        chaosBadge.style.fontSize = '1.3rem';
+                        chaosBadge.style.fontWeight = 'bold';
+                        chaosBadge.style.color = '#2d3436';
+                        chaosBadge.style.background = '#ffeaa7';
+                        chaosBadge.style.padding = '0.4rem 0.8rem';
+                        chaosBadge.style.borderRadius = '999px';
+                        chaosBadge.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
+                        podiumPlace.appendChild(chaosBadge);
+                    }
                     
                     // Immediately set up the countdown for the next position
                     setTimeout(() => {
@@ -1491,6 +1615,22 @@ function showPickTimer(seconds, callback) {
     }, 1000);
 }
 
+function formatOrdinal(num) {
+    const remainder10 = num % 10;
+    const remainder100 = num % 100;
+    
+    if (remainder10 === 1 && remainder100 !== 11) {
+        return `${num}st`;
+    }
+    if (remainder10 === 2 && remainder100 !== 12) {
+        return `${num}nd`;
+    }
+    if (remainder10 === 3 && remainder100 !== 13) {
+        return `${num}rd`;
+    }
+    return `${num}th`;
+}
+
 // Add CSS styles for the pick timer
 const timerStyleElement = document.createElement('style');
 timerStyleElement.textContent = `
@@ -1524,3 +1664,22 @@ timerStyleElement.textContent = `
     }
 `;
 document.head.appendChild(timerStyleElement); 
+
+const chaosStyleElement = document.createElement('style');
+chaosStyleElement.textContent = `
+    @keyframes pulseGlow {
+        0% {
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
+            transform: scale(0.98);
+        }
+        50% {
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.65));
+            transform: scale(1.02);
+        }
+        100% {
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
+            transform: scale(0.98);
+        }
+    }
+`;
+document.head.appendChild(chaosStyleElement);
