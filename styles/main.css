@@ -109,22 +109,35 @@ h2 {
     color: var(--text-primary);
 }
 
-.team-input-row input {
-    padding: 0.8rem;
+.team-input-row select {
+    padding: 0.85rem 2.8rem 0.85rem 1rem;
     border: 2px solid #e0e4ff;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 1rem;
-    transition: all 0.2s ease;
+    font-weight: 500;
+    color: var(--text-primary);
+    background-color: #f8f9ff;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='14' height='9' viewBox='0 0 14 9' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%234834d4' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 14px 9px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    cursor: pointer;
 }
 
-.team-input-row input:focus {
+.team-input-row select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(72, 52, 212, 0.1);
+    box-shadow: 0 0 0 3px rgba(72, 52, 212, 0.15);
+    background-color: #ffffff;
 }
 
-.team-input-row input::placeholder {
-    color: #b0b6d3;
+.team-input-row select option {
+    color: var(--text-primary);
+    font-weight: 500;
 }
 
 .odds-table-container {

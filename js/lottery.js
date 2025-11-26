@@ -89,19 +89,6 @@ function createTeamInputs() {
     // Load saved team names before creating inputs
     loadSavedTeamNames();
 
-    // Ensure the datalist with preset options exists once
-    let datalist = document.getElementById('teamNameOptions');
-    if (!datalist) {
-        datalist = document.createElement('datalist');
-        datalist.id = 'teamNameOptions';
-        TEAM_NAME_OPTIONS.forEach(name => {
-            const option = document.createElement('option');
-            option.value = name;
-            datalist.appendChild(option);
-        });
-        document.body.appendChild(datalist);
-    }
-
     teams.forEach((team, index) => {
         const row = document.createElement('div');
         row.className = 'team-input-row';
@@ -109,20 +96,45 @@ function createTeamInputs() {
         const label = document.createElement('label');
         label.textContent = `Team ${index + 1}:`;
         
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.setAttribute('list', 'teamNameOptions');
-        input.value = team.name && !team.name.startsWith('Team ') ? team.name : '';
-        input.placeholder = 'Select Team...';
+        const select = document.createElement('select');
+        select.className = 'team-name-select';
+
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = 'Select Team';
+        placeholderOption.disabled = true;
+        select.appendChild(placeholderOption);
+
+        let hasSelectedOption = false;
+        TEAM_NAME_OPTIONS.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            if (team.name === name) {
+                option.selected = true;
+                placeholderOption.selected = false;
+                hasSelectedOption = true;
+            }
+            select.appendChild(option);
+        });
+
+        if (!hasSelectedOption && team.name && !team.name.startsWith('Team ')) {
+            const customOption = document.createElement('option');
+            customOption.value = team.name;
+            customOption.textContent = team.name;
+            customOption.selected = true;
+            select.appendChild(customOption);
+            placeholderOption.selected = false;
+        }
         
         // Save team name when input changes
-        input.addEventListener('input', function() {
+        select.addEventListener('change', function() {
             teams[index].name = this.value || `Team ${index + 1}`;
             saveTeamNames();
         });
         
         row.appendChild(label);
-        row.appendChild(input);
+        row.appendChild(select);
         teamInputsDiv.appendChild(row);
     });
 }
@@ -415,8 +427,8 @@ function runLottery() {
         return;
     }
 
-    // Update team names from inputs
-    const inputs = document.querySelectorAll('.team-input-row input');
+    // Update team names from dropdowns
+    const inputs = document.querySelectorAll('.team-input-row select');
     inputs.forEach((input, index) => {
         if (input.value.trim()) {
             teams[index].name = input.value.trim();
