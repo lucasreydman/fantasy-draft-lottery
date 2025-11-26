@@ -707,54 +707,67 @@ function runLottery() {
         setTimeout(() => {
             animationContainer.removeChild(calculatingMsg);
             
-            // Start with revealing picks 10-7 (automatic)
+            // Start with revealing picks 10-5 (automatic)
             revealAutomaticPicks();
         }, 5000);
         
-        // Step 1: Reveal automatic picks (10-7)
+        // Step 1: Reveal automatic picks (10-5)
         function revealAutomaticPicks() {
+            animationContainer.innerHTML = '';
+
             const batchHeader = document.createElement('div');
             batchHeader.className = 'batch-header';
-            batchHeader.textContent = 'Automatic Picks';
+            batchHeader.textContent = 'Automatic Picks (10-5)';
             batchHeader.style.fontSize = '1.8rem';
             batchHeader.style.fontWeight = 'bold';
             batchHeader.style.color = '#ff6b6b';
             batchHeader.style.marginBottom = '1rem';
             animationContainer.appendChild(batchHeader);
             
+            const picksWrapper = document.createElement('div');
+            picksWrapper.className = 'automatic-picks-wrapper';
+            animationContainer.appendChild(picksWrapper);
+            
             let currentIndex = 9; // Start from pick 10
             
             function showNextPick() {
-                if (currentIndex >= 6) { // For picks 10 to 7
+                if (currentIndex >= 4) { // For picks 10 to 5
                     const resultItem = document.createElement('div');
                     resultItem.className = 'fullscreen-result-item';
                     resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name}`;
                     
-                    resultItem.style.backgroundColor = '#ffcccb';
+                    if (currentIndex >= 6) {
+                        resultItem.style.backgroundColor = '#ffcccb';
+                        resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
+                    } else {
+                        resultItem.style.backgroundColor = '#f8f9fa';
+                        resultItem.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
+                    }
                     resultItem.style.fontWeight = 'normal';
-                    resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
                     
-                    // Insert at the beginning rather than appending to show highest pick at top
-                    animationContainer.insertBefore(resultItem, animationContainer.firstChild.nextSibling);
+                    // Insert at the top of the list (right below the header)
+                    if (picksWrapper.firstChild) {
+                        picksWrapper.insertBefore(resultItem, picksWrapper.firstChild);
+                    } else {
+                        picksWrapper.appendChild(resultItem);
+                    }
                     
                     currentIndex--;
                     
                     // Continue with next pick after delay
-                    if (currentIndex >= 6) {
-                        setTimeout(showNextPick, 800);
+                    if (currentIndex >= 4) {
+                        setTimeout(showNextPick, 3000);
                     } else {
-                        // When all automatic picks are shown, add a "next" button to continue
                         setTimeout(() => {
                             const nextButton = document.createElement('button');
-                            nextButton.textContent = 'Continue to Lottery Picks';
+                            nextButton.textContent = 'Reveal Top 4 Picks';
                             nextButton.className = 'lottery-button';
                             nextButton.style.margin = '2rem auto';
                             nextButton.style.display = 'block';
                             
                             nextButton.addEventListener('click', () => {
-                                // Clear screen and show lottery picks 6-5
                                 animationContainer.innerHTML = '';
-                                revealMiddlePicks();
+                                revealTopFour();
                             });
                             
                             animationContainer.appendChild(nextButton);
@@ -765,67 +778,8 @@ function runLottery() {
             
             showNextPick();
         }
-        
-        // Step 2: Reveal middle picks (6-5)
-        function revealMiddlePicks() {
-            const batchHeader = document.createElement('div');
-            batchHeader.className = 'batch-header';
-            batchHeader.textContent = 'Lottery Picks 6-5';
-            batchHeader.style.fontSize = '1.8rem';
-            batchHeader.style.fontWeight = 'bold';
-            batchHeader.style.color = '#4834d4';
-            batchHeader.style.marginBottom = '1rem';
-            animationContainer.appendChild(batchHeader);
-            
-            let currentIndex = 5; // Start from pick 6
-            
-            function showNextPick() {
-                if (currentIndex >= 4) { // For picks 6 to 5
-                    // Show pick timer before revealing pick - standardized to 10 seconds
-                    showPickTimer(10, () => {
-                        const resultItem = document.createElement('div');
-                        resultItem.className = 'fullscreen-result-item';
-                        resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name}`;
-                        
-                        // Regular pick styling
-                        resultItem.style.backgroundColor = '#f8f9fa';
-                        resultItem.style.fontWeight = 'normal';
-                        resultItem.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
-                        
-                        // Insert at the beginning rather than appending to show highest pick at top
-                        animationContainer.insertBefore(resultItem, animationContainer.firstChild.nextSibling);
-                        
-                        currentIndex--;
-                        
-                        // Continue with next pick after delay
-                        if (currentIndex >= 4) {
-                            setTimeout(showNextPick, 500);
-                        } else {
-                            // When all middle picks are shown, add a "next" button to continue
-                            setTimeout(() => {
-                                const nextButton = document.createElement('button');
-                                nextButton.textContent = 'Reveal Top 4 Picks';
-                                nextButton.className = 'lottery-button';
-                                nextButton.style.margin = '2rem auto';
-                                nextButton.style.display = 'block';
-                                
-                                nextButton.addEventListener('click', () => {
-                                    // Clear screen and show podium for top 4
-                                    animationContainer.innerHTML = '';
-                                    revealTopFour();
-                                });
-                                
-                                animationContainer.appendChild(nextButton);
-                            }, 1000);
-                        }
-                    });
-                }
-            }
-            
-            showNextPick();
-        }
-        
-        // Step 3: Reveal top 4 picks in podium style
+
+        // Step 2: Reveal top 4 picks in podium style
         function revealTopFour() {
             // Clear any previous content
             animationContainer.innerHTML = '';
