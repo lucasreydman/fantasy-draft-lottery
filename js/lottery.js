@@ -3,34 +3,30 @@ console.log('Lottery.js loaded');
 
 // Define the teams and their chances
 const teams = [
-    { name: "Team 1", chances: 140 },
-    { name: "Team 2", chances: 140 },
-    { name: "Team 3", chances: 140 },
-    { name: "Team 4", chances: 140 },
+    { name: "Team 1", chances: 150 },
+    { name: "Team 2", chances: 150 },
+    { name: "Team 3", chances: 150 },
+    { name: "Team 4", chances: 150 },
     { name: "Team 5", chances: 40 },
     { name: "Team 6", chances: 30 },
-    { name: "Team 7", chances: 20 },
-    { name: "Team 8", chances: 10 },
+    { name: "Team 7", chances: 0 },
+    { name: "Team 8", chances: 0 },
     { name: "Team 9", chances: 0 },
-    { name: "Team 10", chances: 0 },
-    { name: "Team 11", chances: 0 },
-    { name: "Team 12", chances: 0 }
+    { name: "Team 10", chances: 0 }
 ];
 
 // Define the odds for each team at each position
 const odds = [
-    [21.2, 20.5, 19.4, 17.4, 21.4, 0, 0, 0], // Team 1
-    [21.2, 20.5, 19.4, 17.4, 18.8, 2.7, 0, 0], // Team 2
-    [21.2, 20.5, 19.4, 17.4, 16.3, 5.0, 0.2, 0], // Team 3
-    [21.2, 20.5, 19.4, 17.4, 14.0, 7.0, 0.5, 0], // Team 4
-    [6.1, 7.1, 8.7, 11.5, 29.5, 32.9, 4.2, 0.1], // Team 5
-    [4.5, 5.4, 6.7, 9.1, 0, 52.5, 21.0, 0.8], // Team 6
-    [3.0, 3.6, 4.6, 6.4, 0, 0, 74.2, 8.2], // Team 7
-    [1.5, 1.8, 2.4, 3.3, 0, 0, 0, 90.9]  // Team 8
+    [22.4, 21.8, 20.9, 19.1, 15.7, 0], // Team 1
+    [22.4, 21.8, 20.9, 19.1, 14.8, 0.9], // Team 2
+    [22.4, 21.8, 20.9, 19.1, 13.8, 1.9], // Team 3
+    [22.4, 21.8, 20.9, 19.1, 12.9, 2.8], // Team 4
+    [6.0, 7.2, 9.1, 13.2, 42.8, 21.7], // Team 5
+    [4.5, 5.5, 7.1, 10.4, 0, 72.6]  // Team 6
 ];
 
 // Initialize pick ownership data structure
-const pickOwnership = Array(4).fill().map(() => Array(12).fill().map(() => null));
+const pickOwnership = Array(4).fill().map(() => Array(10).fill().map(() => null));
 
 // Load saved team names from localStorage
 function loadSavedTeamNames() {
@@ -58,7 +54,7 @@ function loadSavedPickOwnership() {
         const parsedOwnership = JSON.parse(savedOwnership);
         // Only copy valid values (non-null)
         for (let round = 0; round < 4; round++) {
-            for (let pick = 0; pick < 12; pick++) {
+            for (let pick = 0; pick < 10; pick++) {
                 if (parsedOwnership[round][pick] !== null) {
                     pickOwnership[round][pick] = parsedOwnership[round][pick];
                 }
@@ -176,12 +172,12 @@ function createPickOwnershipTable() {
         tbody.appendChild(roundHeaderRow);
         
         // Add each pick in the round
-        for (let pick = 0; pick < 12; pick++) {
+        for (let pick = 0; pick < 10; pick++) {
             const row = document.createElement('tr');
             
             // Pick number cell
             const pickCell = document.createElement('td');
-            const pickNumber = round * 12 + pick + 1;
+            const pickNumber = round * 10 + pick + 1;
             pickCell.textContent = pickNumber;
             row.appendChild(pickCell);
             
@@ -234,50 +230,54 @@ function createPickOwnershipTable() {
 
 // Function to run a quick lottery without animation - modified for NBA-style rules
 function runQuickLottery() {
-    // Create a copy of teams for the lottery with their original indexes
-    const lotteryTeams = teams.slice(0, 8).map((team, index) => ({
+    // Create a copy of teams for the lottery with their original indexes (teams 1-6 have chances)
+    const lotteryTeams = teams.slice(0, 6).map((team, index) => ({
         ...team,
         originalIndex: index // Store original index for seeding reference
     }));
-    const results = new Array(12);
+    const results = new Array(10);
     
     // Store a copy of the lottery teams in their original seeding order (worst to best record)
     const teamsInSeedingOrder = [...lotteryTeams].sort((a, b) => b.chances - a.chances);
     
-    // Step 1: Generate top 4 picks through lottery
+    // Step 1: Generate top 6 picks through lottery
     const availableTeams = [...lotteryTeams];
-    const top4Picks = [];
+    const top6Picks = [];
     
-    // Choose top 4 picks randomly based on odds
-    for (let i = 0; i < 4; i++) {
-        const selectedIndex = getRandomTeam(availableTeams);
+    // Choose top 6 picks randomly based on odds
+    for (let i = 0; i < 6; i++) {
+        // For pick 5, exclude Team 6 (index 5) if they're still available
+        let teamsForThisPick = [...availableTeams];
+        if (i === 4) { // Pick 5 (0-indexed, so i === 4)
+            teamsForThisPick = teamsForThisPick.filter(team => team.originalIndex !== 5);
+            // Safety check: if filtering removed all teams, use original availableTeams
+            // (This should never happen, but ensures robustness)
+            if (teamsForThisPick.length === 0) {
+                teamsForThisPick = [...availableTeams];
+            }
+        }
+        
+        const selectedIndex = getRandomTeam(teamsForThisPick);
         if (selectedIndex === null) {
             console.error('Failed to select a team');
             break;
         }
-        const selectedTeam = availableTeams[selectedIndex];
-        top4Picks.push(selectedTeam);
-        availableTeams.splice(selectedIndex, 1);
+        
+        // Find the actual index in availableTeams
+        const selectedTeam = teamsForThisPick[selectedIndex];
+        const actualIndex = availableTeams.findIndex(t => t.originalIndex === selectedTeam.originalIndex);
+        
+        top6Picks.push(selectedTeam);
+        availableTeams.splice(actualIndex, 1);
     }
     
-    // Place top 4 picks at the front of results array
-    for (let i = 0; i < 4; i++) {
-        results[i] = top4Picks[i];
+    // Place top 6 picks at the front of results array
+    for (let i = 0; i < 6; i++) {
+        results[i] = top6Picks[i];
     }
     
-    // Step 2: Assign picks 5-8 based on original seeding (highest odds first)
-    // Get teams that didn't get a top 4 pick
-    const remainingTeams = teamsInSeedingOrder.filter(seedTeam => 
-        !top4Picks.some(pickedTeam => pickedTeam.originalIndex === seedTeam.originalIndex)
-    );
-    
-    // Assign picks 5-8 to remaining teams in order of original seeding (worst record first)
-    for (let i = 0; i < remainingTeams.length; i++) {
-        results[i + 4] = remainingTeams[i];
-    }
-    
-    // Step 3: Add teams 9-12 automatically (they stay in their original positions)
-    for (let i = 8; i < 12; i++) {
+    // Step 2: Add teams 7-10 automatically (they stay in their original positions)
+    for (let i = 6; i < 10; i++) {
         results[i] = teams[i];
     }
     
@@ -332,7 +332,7 @@ function updateFullDraftOrder(lotteryResults) {
         roundDiv.appendChild(roundTitle);
         
         // For each pick in the round
-        for (let pick = 0; pick < 12; pick++) {
+        for (let pick = 0; pick < 10; pick++) {
             // Get the original team based on lottery results
             const originalTeamIndex = lotteryResults[pick].name === teams[pick].name ? pick : teams.findIndex(team => team.name === lotteryResults[pick].name);
             
@@ -344,7 +344,7 @@ function updateFullDraftOrder(lotteryResults) {
             
             const pickNumber = document.createElement('span');
             pickNumber.className = 'draft-pick-number';
-            pickNumber.textContent = `${round * 12 + pick + 1}.`;
+            pickNumber.textContent = `${round * 10 + pick + 1}.`;
             
             const pickTeam = document.createElement('span');
             pickTeam.className = 'draft-pick-team';
@@ -519,11 +519,11 @@ function runLottery() {
         setTimeout(() => {
             animationContainer.removeChild(calculatingMsg);
             
-            // Start with revealing picks 12-9 (automatic)
+            // Start with revealing picks 10-7 (automatic)
             revealAutomaticPicks();
         }, 5000);
         
-        // Step 1: Reveal automatic picks (12-9)
+        // Step 1: Reveal automatic picks (10-7)
         function revealAutomaticPicks() {
             const batchHeader = document.createElement('div');
             batchHeader.className = 'batch-header';
@@ -534,10 +534,10 @@ function runLottery() {
             batchHeader.style.marginBottom = '1rem';
             animationContainer.appendChild(batchHeader);
             
-            let currentIndex = 11; // Start from pick 12
+            let currentIndex = 9; // Start from pick 10
             
             function showNextPick() {
-                if (currentIndex >= 8) { // For picks 12 to 9
+                if (currentIndex >= 6) { // For picks 10 to 7
                     const resultItem = document.createElement('div');
                     resultItem.className = 'fullscreen-result-item';
                     resultItem.textContent = `Pick ${currentIndex + 1}: ${results[currentIndex].name}`;
@@ -552,7 +552,7 @@ function runLottery() {
                     currentIndex--;
                     
                     // Continue with next pick after delay
-                    if (currentIndex >= 8) {
+                    if (currentIndex >= 6) {
                         setTimeout(showNextPick, 800);
                     } else {
                         // When all automatic picks are shown, add a "next" button to continue
@@ -564,7 +564,7 @@ function runLottery() {
                             nextButton.style.display = 'block';
                             
                             nextButton.addEventListener('click', () => {
-                                // Clear screen and show lottery picks 8-4
+                                // Clear screen and show lottery picks 6-5
                                 animationContainer.innerHTML = '';
                                 revealMiddlePicks();
                             });
@@ -578,21 +578,21 @@ function runLottery() {
             showNextPick();
         }
         
-        // Step 2: Reveal middle picks (8-5)
+        // Step 2: Reveal middle picks (6-5)
         function revealMiddlePicks() {
             const batchHeader = document.createElement('div');
             batchHeader.className = 'batch-header';
-            batchHeader.textContent = 'Lottery Picks 8-5';
+            batchHeader.textContent = 'Lottery Picks 6-5';
             batchHeader.style.fontSize = '1.8rem';
             batchHeader.style.fontWeight = 'bold';
             batchHeader.style.color = '#4834d4';
             batchHeader.style.marginBottom = '1rem';
             animationContainer.appendChild(batchHeader);
             
-            let currentIndex = 7; // Start from pick 8
+            let currentIndex = 5; // Start from pick 6
             
             function showNextPick() {
-                if (currentIndex >= 4) { // For picks 8 to 5
+                if (currentIndex >= 4) { // For picks 6 to 5
                     // Show pick timer before revealing pick - standardized to 10 seconds
                     showPickTimer(10, () => {
                         const resultItem = document.createElement('div');
@@ -1000,7 +1000,7 @@ function updateResultsDiv(results) {
         'box-sizing: border-box !important;' +
         'position: relative !important;');
     
-    // Add the results to the container in the intended order (1 to 12)
+    // Add the results to the container in the intended order (1 to 10)
     for (let i = 0; i < results.length; i++) {
         const resultItem = document.createElement('div');
         resultItem.className = 'result-item';
@@ -1032,12 +1032,12 @@ function updateResultsDiv(results) {
             resultItem.style.fontWeight = 'bold';
             resultItem.style.fontSize = '1.1rem';
             resultItem.style.boxShadow = '0 4px 6px rgba(205, 127, 50, 0.3)';
-        } else if (i >= 8) { // Picks 9-12 (automatic)
+        } else if (i >= 6) { // Picks 7-10 (automatic)
             resultItem.style.backgroundColor = '#ffcccb'; // Light red
             resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
         }
         
-        // Add text content without automatic label for picks 9-12
+        // Add text content without automatic label for picks 7-10
         resultItem.textContent = `Pick ${i + 1}: ${results[i].name}`;
         
         // Append to the container in sequence

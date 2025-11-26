@@ -5,14 +5,14 @@ A dynamic web-based lottery simulator for fantasy sports draft order determinati
 ## Features
 
 ### Team Management
-- Customizable team names for up to 12 teams
+- Customizable team names for up to 10 teams
 - Automatic saving of team names in local storage
-- Pre-configured lottery odds for the top 8 teams
-- Automatic placement for teams 9-12
+- Pre-configured lottery odds for the top 6 teams
+- Automatic placement for teams 7-10
 
 ### Lottery System
-- Weighted lottery system for picks 1-8
-- Automatic placement for picks 9-12
+- Weighted lottery system for picks 1-6
+- Automatic placement for picks 7-10
 - Magic number functionality (1-99) for running multiple simulations
 - Visual podium display for quick simulation results
 - Dramatic reveal animation for the final lottery results
@@ -32,18 +32,16 @@ A dynamic web-based lottery simulator for fantasy sports draft order determinati
 
 ## Lottery Odds
 
-The lottery uses the following odds distribution for the top 8 teams:
+The lottery uses the following odds distribution for the top 6 teams:
 
-| Team  |   1st   |   2nd   |   3rd   |   4th   |   5th   |   6th   |   7th   |   8th   |
-|-------|---------|---------|---------|---------|---------|---------|---------|---------|
-|   1   |  21.2%  |  20.5%  |  19.4%  |  17.4%  |  21.4%  |    -    |    -    |    -    |
-|   2   |  21.2%  |  20.5%  |  19.4%  |  17.4%  |  18.8%  |   2.7%  |    -    |    -    |
-|   3   |  21.2%  |  20.5%  |  19.4%  |  17.4%  |  16.3%  |   5.0%  |   0.2%  |    -    |
-|   4   |  21.2%  |  20.5%  |  19.4%  |  17.4%  |  14.0%  |   7.0%  |   0.5%  |    -    |
-|   5   |   6.1%  |   7.1%  |   8.7%  |  11.5%  |  29.5%  |  32.9%  |   4.2%  |   0.1%  |
-|   6   |   4.5%  |   5.4%  |   6.7%  |   9.1%  |    -    |  52.5%  |  21.0%  |   0.8%  |
-|   7   |   3.0%  |   3.6%  |   4.6%  |   6.4%  |    -    |    -    |  74.2%  |   8.2%  |
-|   8   |   1.5%  |   1.8%  |   2.4%  |   3.3%  |    -    |    -    |    -    |  90.9%  |
+| Team  |   1st   |   2nd   |   3rd   |   4th   |   5th   |   6th   |
+|-------|---------|---------|---------|---------|---------|---------|
+|   1   |  22.4%  |  21.8%  |  20.9%  |  19.1%  |  15.7%  |    -    |
+|   2   |  22.4%  |  21.8%  |  20.9%  |  19.1%  |  14.8%  |   0.9%  |
+|   3   |  22.4%  |  21.8%  |  20.9%  |  19.1%  |  13.8%  |   1.9%  |
+|   4   |  22.4%  |  21.8%  |  20.9%  |  19.1%  |  12.9%  |   2.8%  |
+|   5   |   6.0%  |   7.2%  |   9.1%  |  13.2%  |  42.8%  |  21.7%  |
+|   6   |   4.5%  |   5.5%  |   7.1%  |  10.4%  |    -    |  72.6%  |
 
 ## Magic Number Feature
 
