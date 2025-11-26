@@ -702,6 +702,8 @@ function runLottery() {
 
         // Run the actual lottery
         const results = runQuickLottery();
+        const PICK_DELAY_MS = 3000;
+        const PICK_DELAY_SECONDS = PICK_DELAY_MS / 1000;
         
         // Start the reveal process after a longer delay (5 seconds)
         setTimeout(() => {
@@ -717,7 +719,7 @@ function runLottery() {
 
             const batchHeader = document.createElement('div');
             batchHeader.className = 'batch-header';
-            batchHeader.textContent = 'Automatic Picks (10-5)';
+            batchHeader.textContent = 'Picks 10 through 5';
             batchHeader.style.fontSize = '1.8rem';
             batchHeader.style.fontWeight = 'bold';
             batchHeader.style.color = '#ff6b6b';
@@ -756,7 +758,7 @@ function runLottery() {
                     
                     // Continue with next pick after delay
                     if (currentIndex >= 4) {
-                        setTimeout(showNextPick, 3000);
+                        setTimeout(showNextPick, PICK_DELAY_MS);
                     } else {
                         setTimeout(() => {
                             const nextButton = document.createElement('button');
@@ -856,43 +858,39 @@ function runLottery() {
                 
                 const position = positions[index].position;
                 
-                // Skip drumroll and timer for 2nd pick (position 1)
-                if (position !== 1) {
-                    // Update drumroll message - only for positions other than 2nd pick
-                    const drumroll = document.createElement('div');
-                    drumroll.className = 'fullscreen-drumroll';
-                    
-                    if (position === 0) {
-                        drumroll.textContent = 'The team picking 1st in this years draft will be...';
-                        drumroll.style.color = '#ffd700';
-                    } else if (position === 2) {
-                        drumroll.textContent = 'The team picking 3rd in this years draft will be...';
-                        drumroll.style.color = '#cd7f32';
-                    } else {
-                        drumroll.textContent = 'The team picking 4th in this years draft will be...';
-                        drumroll.style.color = '#6c5ce7';
-                    }
-                    
-                    drumroll.style.fontSize = '2.2rem'; // Larger text
-                    drumroll.style.fontWeight = 'bold';
-                    drumroll.style.textAlign = 'center';
-                    drumroll.style.padding = '1.5rem';
-                    drumroll.style.animation = 'shake 0.5s infinite';
-                    drumroll.style.width = '100%';
-                    
-                    // Clear previous drumroll and add new one
-                    drumrollArea.innerHTML = '';
-                    drumrollArea.appendChild(drumroll);
-                    
-                    // Standardize all countdowns to 10 seconds for consistency
-                    showPickTimer(10, () => {
-                        revealPodiumPosition(position);
-                    });
+                // Update drumroll message for the current position
+                const drumroll = document.createElement('div');
+                drumroll.className = 'fullscreen-drumroll';
+                
+                if (position === 0) {
+                    drumroll.textContent = 'The team picking 1st in this years draft will be...';
+                    drumroll.style.color = '#ffd700';
+                } else if (position === 1) {
+                    drumroll.textContent = 'The team picking 2nd in this years draft will be...';
+                    drumroll.style.color = '#c0c0c0';
+                } else if (position === 2) {
+                    drumroll.textContent = 'The team picking 3rd in this years draft will be...';
+                    drumroll.style.color = '#cd7f32';
                 } else {
-                    // For 2nd pick, just clear drumroll area and reveal immediately
-                    drumrollArea.innerHTML = '';
-                    revealPodiumPosition(position);
+                    drumroll.textContent = 'The team picking 4th in this years draft will be...';
+                    drumroll.style.color = '#6c5ce7';
                 }
+                
+                drumroll.style.fontSize = '2.2rem'; // Larger text
+                drumroll.style.fontWeight = 'bold';
+                drumroll.style.textAlign = 'center';
+                drumroll.style.padding = '1.5rem';
+                drumroll.style.animation = 'shake 0.5s infinite';
+                drumroll.style.width = '100%';
+                
+                // Clear previous drumroll and add new one
+                drumrollArea.innerHTML = '';
+                drumrollArea.appendChild(drumroll);
+                
+                // Run a 3-second countdown before revealing the pick
+                showPickTimer(PICK_DELAY_SECONDS, () => {
+                    revealPodiumPosition(position);
+                });
                 
                 // Helper function to reveal a podium position
                 function revealPodiumPosition(position) {
@@ -1004,17 +1002,10 @@ function runLottery() {
                     // Add to podium container
                     podiumContainer.appendChild(podiumPlace);
                     
-                    // Continue with next position after a delay
-                    let nextDelay = 2000; // Default delay
-                    
-                    // Special case: If we just showed the 1st pick, show 2nd pick immediately after a short delay
-                    if (position === 0) {
-                        nextDelay = 1000; // Shorter delay for 2nd pick after 1st
-                    }
-                    
+                    // Immediately set up the countdown for the next position
                     setTimeout(() => {
                         revealPodiumPlace(index + 1);
-                    }, nextDelay);
+                    }, 0);
                 }
             }
             
