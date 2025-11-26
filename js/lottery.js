@@ -28,6 +28,19 @@ const TEAM_NAME_OPTIONS = [
     "Zims Sims"
 ];
 
+const TEAM_LABELS = [
+    "10th Seed",
+    "9th Seed",
+    "8th Seed",
+    "7th Seed",
+    "6th Seed",
+    "5th Seed",
+    "4th Seed",
+    "3rd Place",
+    "2nd Place",
+    "Champion"
+];
+
 // Define the odds for each team at each position
 const odds = [
     [22.4, 21.8, 20.9, 19.1, 15.7, 0], // Team 1
@@ -40,6 +53,9 @@ const odds = [
 
 // Initialize pick ownership data structure
 const pickOwnership = Array(3).fill().map(() => Array(10).fill().map(() => null));
+
+let teamsLocked = false;
+let confirmTeamButton = null;
 
 // Load saved team names from localStorage
 function loadSavedTeamNames() {
@@ -58,6 +74,22 @@ function loadSavedTeamNames() {
 function saveTeamNames() {
     const teamNames = teams.map(team => team.name);
     localStorage.setItem('lotteryTeamNames', JSON.stringify(teamNames));
+}
+
+function loadTeamLockState() {
+    try {
+        teamsLocked = localStorage.getItem('lotteryTeamsLocked') === 'true';
+    } catch (error) {
+        teamsLocked = false;
+    }
+}
+
+function saveTeamLockState() {
+    try {
+        localStorage.setItem('lotteryTeamsLocked', teamsLocked);
+    } catch (error) {
+        console.warn('Unable to save team lock state', error);
+    }
 }
 
 // Load saved pick ownership from localStorage
@@ -89,12 +121,14 @@ function createTeamInputs() {
     // Load saved team names before creating inputs
     loadSavedTeamNames();
 
+    teamInputsDiv.innerHTML = '';
+
     teams.forEach((team, index) => {
         const row = document.createElement('div');
         row.className = 'team-input-row';
         
         const label = document.createElement('label');
-        label.textContent = `Team ${index + 1}:`;
+        label.textContent = `${TEAM_LABELS[index] || `Team ${index + 1}`}:`;
         
         const select = document.createElement('select');
         select.className = 'team-name-select';
@@ -125,18 +159,118 @@ function createTeamInputs() {
             customOption.selected = true;
             select.appendChild(customOption);
             placeholderOption.selected = false;
+        } else if (!hasSelectedOption) {
+            placeholderOption.selected = true;
+        } else {
+            placeholderOption.selected = false;
         }
-        
-        // Save team name when input changes
-        select.addEventListener('change', function() {
-            teams[index].name = this.value || `Team ${index + 1}`;
-            saveTeamNames();
-        });
         
         row.appendChild(label);
         row.appendChild(select);
         teamInputsDiv.appendChild(row);
     });
+
+    addTeamConfirmControls(teamInputsDiv);
+}
+
+function addTeamConfirmControls(teamInputsDiv) {
+    if (!teamInputsDiv) return;
+    const parentSection = teamInputsDiv.parentElement;
+    if (!parentSection || document.getElementById('confirmTeamOrder')) return;
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'team-input-actions';
+
+    confirmTeamButton = document.createElement('button');
+    confirmTeamButton.type = 'button';
+    confirmTeamButton.id = 'confirmTeamOrder';
+    confirmTeamButton.className = 'team-confirm-button';
+    confirmTeamButton.addEventListener('click', handleConfirmTeamOrder);
+    actionsDiv.appendChild(confirmTeamButton);
+
+    const statusText = document.createElement('p');
+    statusText.id = 'teamConfirmStatus';
+    statusText.className = 'team-confirm-status';
+    actionsDiv.appendChild(statusText);
+
+    parentSection.appendChild(actionsDiv);
+}
+
+function applyTeamLockState() {
+    const selects = document.querySelectorAll('.team-input-row select');
+    selects.forEach(select => {
+        select.disabled = teamsLocked;
+    });
+
+    if (confirmTeamButton) {
+        confirmTeamButton.textContent = teamsLocked ? 'Edit Team Order' : 'Confirm Team Order';
+        confirmTeamButton.classList.toggle('locked', teamsLocked);
+    }
+
+    const statusText = document.getElementById('teamConfirmStatus');
+    if (statusText) {
+        statusText.textContent = teamsLocked
+            ? 'Team order locked. You can now manage pick ownership and run the lottery.'
+            : 'Confirm the team order to unlock pick ownership and the lottery.';
+        statusText.classList.toggle('locked', teamsLocked);
+    }
+}
+
+function handleConfirmTeamOrder() {
+    if (teamsLocked) {
+        unlockTeams();
+        return;
+    }
+
+    if (!validateTeamSelections()) {
+        return;
+    }
+
+    lockTeams();
+}
+
+function validateTeamSelections() {
+    const selects = document.querySelectorAll('.team-input-row select');
+    if (!selects.length) {
+        alert('No team inputs found.');
+        return false;
+    }
+
+    const chosen = new Set();
+    for (let i = 0; i < selects.length; i++) {
+        const value = selects[i].value;
+        if (!value) {
+            alert('Please select a name for every slot before confirming.');
+            return false;
+        }
+        if (chosen.has(value)) {
+            alert('Each team name can only be used once. Please ensure all selections are unique.');
+            return false;
+        }
+        chosen.add(value);
+    }
+
+    return true;
+}
+
+function lockTeams() {
+    const selects = document.querySelectorAll('.team-input-row select');
+    selects.forEach((select, index) => {
+        teams[index].name = select.value || `Team ${index + 1}`;
+    });
+
+    saveTeamNames();
+    teamsLocked = true;
+    saveTeamLockState();
+    applyTeamLockState();
+    createPickOwnershipTable();
+}
+
+function unlockTeams() {
+    teamsLocked = false;
+    saveTeamLockState();
+    applyTeamLockState();
+    createPickOwnershipTable();
 }
 
 // Create odds table
@@ -169,8 +303,15 @@ function createPickOwnershipTable() {
     const tableContainer = document.getElementById('pickOwnershipTable');
     if (!tableContainer) return;
 
-    // Load saved pick ownership before creating the table
-    loadSavedPickOwnership();
+    tableContainer.innerHTML = '';
+
+    if (!teamsLocked) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'pick-ownership-placeholder';
+        placeholder.textContent = 'Confirm the team order to manage pick ownership.';
+        tableContainer.appendChild(placeholder);
+        return;
+    }
 
     // Create table element
     const table = document.createElement('table');
@@ -224,6 +365,8 @@ function createPickOwnershipTable() {
             // Original team cell
             const originalTeamCell = document.createElement('td');
             originalTeamCell.textContent = teams[pick].name;
+            originalTeamCell.dataset.teamIndex = pick;
+            originalTeamCell.className = 'original-team-cell';
             row.appendChild(originalTeamCell);
             
             // Owner dropdown cell
@@ -417,6 +560,11 @@ function updateFullDraftOrder(lotteryResults) {
 // Modify the runLottery function to handle magic number with visible quick runs
 function runLottery() {
     console.log('Running lottery...');
+
+    if (!teamsLocked) {
+        alert('Please confirm the team order before running the lottery.');
+        return;
+    }
     
     // Get magic number
     const magicNumberInput = document.getElementById('magicNumber');
@@ -1104,7 +1252,9 @@ function updateResultsDiv(results) {
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', function() {
+    loadTeamLockState();
     createTeamInputs();
+    applyTeamLockState();
     createOddsTable();
     loadSavedPickOwnership(); // Load saved pick ownership
     createPickOwnershipTable();

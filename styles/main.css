@@ -140,6 +140,62 @@ h2 {
     font-weight: 500;
 }
 
+.team-input-row select:disabled {
+    background-color: #eef0ff;
+    color: #7d86b2;
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+
+.team-input-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem auto 0;
+    max-width: 320px;
+}
+
+.team-confirm-button {
+    width: 100%;
+    padding: 0.9rem 1.5rem;
+    border: none;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(72, 52, 212, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.team-confirm-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(72, 52, 212, 0.45);
+}
+
+.team-confirm-button:active {
+    transform: translateY(0);
+    box-shadow: 0 5px 12px rgba(72, 52, 212, 0.3);
+}
+
+.team-confirm-button.locked {
+    background: linear-gradient(135deg, #20bf6b 0%, var(--success-color) 100%);
+    box-shadow: 0 8px 20px rgba(32, 191, 107, 0.35);
+}
+
+.team-confirm-status {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.team-confirm-status.locked {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
 .odds-table-container {
     width: 100%;
     overflow-x: auto;
@@ -155,6 +211,16 @@ h2 {
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.pick-ownership-placeholder {
+    padding: 1.5rem;
+    text-align: center;
+    background-color: rgba(72, 52, 212, 0.05);
+    border: 2px dashed rgba(72, 52, 212, 0.3);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 .odds-table th,
