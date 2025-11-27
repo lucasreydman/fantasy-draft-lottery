@@ -763,26 +763,6 @@ function runLottery() {
             revealAutomaticPicks();
         }, 5000);
         
-        function createChaosBanner(message) {
-            const banner = document.createElement('div');
-            banner.className = 'chaos-banner';
-            banner.textContent = message;
-            banner.style.background = 'linear-gradient(90deg, #ff6b6b, #feca57)';
-            banner.style.color = '#1b1b1b';
-            banner.style.padding = '0.75rem 1.25rem';
-            banner.style.borderRadius = '999px';
-            banner.style.fontWeight = 'bold';
-            banner.style.textAlign = 'center';
-            banner.style.margin = '0 auto 1rem auto';
-            banner.style.display = 'inline-flex';
-            banner.style.alignItems = 'center';
-            banner.style.justifyContent = 'center';
-            banner.style.gap = '0.5rem';
-            banner.style.boxShadow = '0 8px 20px rgba(255, 107, 107, 0.4)';
-            banner.style.animation = 'pulseGlow 1.2s ease-in-out infinite';
-            return banner;
-        }
-        
         // Step 1: Reveal automatic picks (10-5)
         function revealAutomaticPicks() {
             animationContainer.innerHTML = '';
@@ -795,14 +775,6 @@ function runLottery() {
             batchHeader.style.color = '#ff6b6b';
             batchHeader.style.marginBottom = '1rem';
             animationContainer.appendChild(batchHeader);
-            
-            if (jumpAnalysis.fallers.length > 0) {
-                const fallMessage = jumpAnalysis.fallers
-                    .map(faller => `${faller.team.name} slid from the ${formatOrdinal(faller.fromSeed)} seed to Pick ${faller.pick}`)
-                    .join(' • ');
-                const banner = createChaosBanner(`Upset Alert! ${fallMessage}`);
-                animationContainer.appendChild(banner);
-            }
             
             const picksWrapper = document.createElement('div');
             picksWrapper.className = 'automatic-picks-wrapper';
@@ -833,7 +805,7 @@ function runLottery() {
                         resultItem.style.overflow = 'hidden';
                         
                         const chaosNote = document.createElement('div');
-                        chaosNote.textContent = `Shock drop! ${fallInfo.team.name} fell from the ${formatOrdinal(fallInfo.fromSeed)} seed.`;
+                        chaosNote.textContent = `Shock drop! ${fallInfo.team.name} fell out of the Top 4.`;
                         chaosNote.style.marginTop = '0.5rem';
                         chaosNote.style.fontWeight = 'bold';
                         chaosNote.style.color = '#c0392b';
@@ -1555,57 +1527,53 @@ document.head.appendChild(podiumStyleElement);
 
 // Create a centralized pick timer function
 function showPickTimer(seconds, callback) {
-    // Create timer container that's more prominently displayed in the center
     const timerContainer = document.createElement('div');
     timerContainer.className = 'pick-timer-container';
     timerContainer.style.display = 'flex';
     timerContainer.style.flexDirection = 'column';
     timerContainer.style.alignItems = 'center';
     timerContainer.style.justifyContent = 'center';
-    timerContainer.style.width = '180px';
-    timerContainer.style.height = '180px';
-    timerContainer.style.borderRadius = '50%';
-    timerContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    timerContainer.style.width = '140px';
+    timerContainer.style.height = '140px';
+    timerContainer.style.borderRadius = '12px';
+    timerContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
     timerContainer.style.color = '#ffffff';
     timerContainer.style.position = 'fixed';
-    timerContainer.style.top = '50%';
-    timerContainer.style.left = '50%';
-    timerContainer.style.transform = 'translate(-50%, -50%)';
-    timerContainer.style.zIndex = '10000'; // Ensure this is higher than any other elements
-    timerContainer.style.boxShadow = '0 0 30px rgba(255, 255, 255, 0.5)';
+    timerContainer.style.top = '20px';
+    timerContainer.style.right = '20px';
+    timerContainer.style.zIndex = '10000';
+    timerContainer.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.45)';
+    timerContainer.style.backdropFilter = 'blur(6px)';
+    timerContainer.style.padding = '1rem';
+    timerContainer.style.textAlign = 'center';
     
-    // Add text label
     const timerLabel = document.createElement('div');
     timerLabel.textContent = 'Revealing in';
-    timerLabel.style.fontSize = '1.2rem';
-    timerLabel.style.marginBottom = '0.5rem';
+    timerLabel.style.fontSize = '1rem';
+    timerLabel.style.marginBottom = '0.25rem';
+    timerLabel.style.letterSpacing = '0.05em';
     timerContainer.appendChild(timerLabel);
     
-    // Add seconds display
     const timerDisplay = document.createElement('div');
     timerDisplay.textContent = seconds.toString();
-    timerDisplay.style.fontSize = '4rem';
+    timerDisplay.style.fontSize = '3rem';
     timerDisplay.style.fontWeight = 'bold';
     timerContainer.appendChild(timerDisplay);
     
-    // Append to fullscreen view instead of body to ensure it's displayed in the modal context
     const fullscreenView = document.querySelector('.lottery-fullscreen');
     fullscreenView.appendChild(timerContainer);
     
     let remainingSeconds = seconds;
-    
-    // Add animation for the countdown
-    timerContainer.style.animation = 'pulse 1s infinite alternate';
+    timerContainer.style.animation = 'slideInCorner 0.3s ease-out';
     
     const interval = setInterval(() => {
         remainingSeconds--;
         
         if (remainingSeconds > 0) {
             timerDisplay.textContent = remainingSeconds.toString();
-            // Update color as time gets lower
             if (remainingSeconds <= 3) {
                 timerDisplay.style.color = '#ff6b6b';
-                timerContainer.style.animation = 'pulse 0.5s infinite alternate';
+                timerContainer.style.boxShadow = '0 0 20px rgba(255, 107, 107, 0.7)';
             }
         } else {
             clearInterval(interval);
@@ -1646,11 +1614,6 @@ timerStyleElement.textContent = `
         }
     }
     
-    .pick-timer-container {
-        animation: pulse 1s infinite alternate;
-        pointer-events: none; /* Allow clicking through the timer */
-    }
-    
     /* Ensure the fullscreen container doesn't block the timer */
     .lottery-fullscreen {
         position: fixed;
@@ -1662,24 +1625,20 @@ timerStyleElement.textContent = `
         z-index: 9999;
         overflow: hidden;
     }
-`;
-document.head.appendChild(timerStyleElement); 
-
-const chaosStyleElement = document.createElement('style');
-chaosStyleElement.textContent = `
-    @keyframes pulseGlow {
-        0% {
-            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
-            transform: scale(0.98);
+    
+    .pick-timer-container {
+        pointer-events: none;
+    }
+    
+    @keyframes slideInCorner {
+        from {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
         }
-        50% {
-            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.65));
-            transform: scale(1.02);
-        }
-        100% {
-            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
-            transform: scale(0.98);
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
         }
     }
 `;
-document.head.appendChild(chaosStyleElement);
+document.head.appendChild(timerStyleElement); 
