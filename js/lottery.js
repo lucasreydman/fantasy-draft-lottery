@@ -1,19 +1,5 @@
-// Debug log to check if script is loading
-console.log('Lottery.js loaded');
-
-// Define the teams and their chances
-const teams = [
-    { name: "Bradley's Bandits", chances: 150 },
-    { name: "Buttar's Barbarians", chances: 150 },
-    { name: "Cyr's Beers", chances: 150 },
-    { name: "Darcy's Demons", chances: 150 },
-    { name: "Lu's Lazers", chances: 40 },
-    { name: "Moe's Hoes", chances: 30 },
-    { name: "Sith's Nips", chances: 0 },
-    { name: "Sleepy's Steppaz", chances: 0 },
-    { name: "Teezy's Turtles", chances: 0 },
-    { name: "Zims Sims", chances: 0 }
-];
+// Lottery weights (index 0 = 10th/worst … 5 = 5th; 6–9 = non-lottery 0). Tuned on load to match the odds table.
+let currentChances = [225, 225, 225, 225, 60, 45, 0, 0, 0, 0];
 
 const TEAM_NAME_OPTIONS = [
     "Bradley's Bandits",
@@ -41,14 +27,21 @@ const TEAM_LABELS = [
     "Champion"
 ];
 
-// Define the odds for each team at each position
-const odds = [
-    [22.4, 21.8, 20.9, 19.1, 15.7, 0], // Team 1
-    [22.4, 21.8, 20.9, 19.1, 14.8, 0.9], // Team 2
-    [22.4, 21.8, 20.9, 19.1, 13.8, 1.9], // Team 3
-    [22.4, 21.8, 20.9, 19.1, 12.9, 2.8], // Team 4
-    [6.0, 7.2, 9.1, 13.2, 42.8, 21.7], // Team 5
-    [4.5, 5.5, 7.1, 10.4, 0, 72.6]  // Team 6
+// Teams: names from options, chances from currentChances (synced by applyChancesToTeams).
+const teams = TEAM_NAME_OPTIONS.map((name, i) => ({ name, chances: currentChances[i] }));
+
+function applyChancesToTeams() {
+    currentChances.forEach((c, i) => { teams[i].chances = c; });
+}
+
+// Odds table: canonical odds per place (10th–5th). Each row sums to 100%.
+let odds = [
+    [22.5, 21.8, 20.9, 19.1, 15.7, 0],     // 10th place
+    [22.5, 21.8, 20.9, 19.1, 14.8, 0.9],   // 9th place
+    [22.5, 21.8, 20.9, 19.1, 13.8, 1.9],   // 8th place
+    [22.5, 21.8, 20.9, 19.1, 12.9, 2.8],   // 7th place
+    [6.0, 7.2, 9.1, 13.2, 42.8, 21.7],     // 6th place (already 100%)
+    [4.5, 5.5, 7.1, 10.4, 0, 72.5]         // 5th place (0% at 5th: excluded by rule; 72.5% at 6th)
 ];
 
 // Initialize pick ownership data structure
@@ -56,6 +49,9 @@ const pickOwnership = Array(3).fill().map(() => Array(10).fill().map(() => null)
 
 let teamsLocked = false;
 let confirmTeamButton = null;
+
+// Last lottery result for export (set when lottery completes).
+let lastLotteryResult = null;
 
 // Load saved team names from localStorage
 function loadSavedTeamNames() {
@@ -273,29 +269,66 @@ function unlockTeams() {
     createPickOwnershipTable();
 }
 
-// Create odds table
-function createOddsTable() {
+// Run Monte Carlo with current team chances; return 6x6 empirical odds (does not modify global odds).
+function runSimulationForOdds(iterations) {
+    const count = Array(6).fill(null).map(() => Array(6).fill(0));
+    for (let n = 0; n < iterations; n++) {
+        const result = runQuickLottery();
+        for (let pick = 0; pick < 6; pick++) {
+            const teamIndex = result[pick].originalIndex;
+            if (teamIndex >= 0 && teamIndex < 6) count[teamIndex][pick]++;
+        }
+    }
+    return count.map((row, t) => {
+        const total = row.reduce((a, b) => a + b, 0);
+        return total === 0 ? row : row.map(c => Math.round((c / total) * 1000) / 10);
+    });
+}
+
+// Tune currentChances so the lottery draw produces (approximately) the displayed odds.
+function tuneChancesToMatchDisplayOdds() {
+    const target = odds.map(row => [...row]);
+    const iterations = 12000;
+    const tuningSteps = 6;
+    for (let step = 0; step < tuningSteps; step++) {
+        applyChancesToTeams();
+        const empirical = runSimulationForOdds(iterations);
+        for (let i = 0; i < 6; i++) {
+            const target1st = target[i][0];
+            const emp1st = empirical[i][0];
+            if (emp1st > 0 && target1st > 0) {
+                currentChances[i] = Math.round(currentChances[i] * (target1st / emp1st));
+                currentChances[i] = Math.max(1, Math.min(999, currentChances[i]));
+            }
+        }
+        const sum = currentChances.slice(0, 6).reduce((a, b) => a + b, 0);
+        if (sum === 0) break;
+        const scale = 999 / sum;
+        for (let i = 0; i < 6; i++) currentChances[i] = Math.max(1, Math.round(currentChances[i] * scale));
+    }
+    applyChancesToTeams();
+}
+
+function refreshOddsTableBody() {
     const tableBody = document.getElementById('oddsTableBody');
     if (!tableBody) return;
-
+    tableBody.innerHTML = '';
     odds.forEach((teamOdds, index) => {
         const row = document.createElement('tr');
-        
-        // Add team name cell
         const teamCell = document.createElement('td');
         teamCell.textContent = `Team ${index + 1}`;
         row.appendChild(teamCell);
-
-        // Add odds cells
         teamOdds.forEach(odd => {
             const cell = document.createElement('td');
-            const displayValue = typeof odd === 'number' ? `${odd.toFixed(1)}%` : '0.0%';
-            cell.textContent = displayValue;
+            cell.textContent = typeof odd === 'number' ? `${odd.toFixed(1)}%` : '0.0%';
             row.appendChild(cell);
         });
-
         tableBody.appendChild(row);
     });
+}
+
+function createOddsTable() {
+    refreshOddsTableBody();
 }
 
 // Create pick ownership table
@@ -411,45 +444,40 @@ function createPickOwnershipTable() {
     tableContainer.appendChild(table);
 }
 
-// Function to run a quick lottery without animation - modified for NBA-style rules
-function runQuickLottery() {
-    // Create a copy of teams for the lottery with their original indexes (teams 1-6 have chances)
+// Run a single lottery. seed (optional): use createSeededRNG(seed) for reproducible result.
+function runQuickLottery(seed) {
+    const rng = seed != null ? createSeededRNG(Number(seed)) : null;
+
     const lotteryTeams = teams.slice(0, 6).map((team, index) => ({
         ...team,
-        originalIndex: index // Store original index for seeding reference
+        originalIndex: index
     }));
     const results = new Array(10);
-    
-    // Store a copy of the lottery teams in their original seeding order (worst to best record)
-    const teamsInSeedingOrder = [...lotteryTeams].sort((a, b) => b.chances - a.chances);
-    
-    // Step 1: Generate top 6 picks through lottery
     const availableTeams = [...lotteryTeams];
     const top6Picks = [];
-    
-    // Choose top 6 picks randomly based on odds
+
     for (let i = 0; i < 6; i++) {
-        // For pick 5, exclude Team 6 (index 5) if they're still available
         let teamsForThisPick = [...availableTeams];
-        if (i === 4) { // Pick 5 (0-indexed, so i === 4)
+        let selectedTeam;
+
+        if (i === 4) {
             teamsForThisPick = teamsForThisPick.filter(team => team.originalIndex !== 5);
-            // Safety check: if filtering removed all teams, use original availableTeams
-            // (This should never happen, but ensures robustness)
-            if (teamsForThisPick.length === 0) {
-                teamsForThisPick = [...availableTeams];
+            if (teamsForThisPick.length === 0) teamsForThisPick = [...availableTeams];
+
+            if (teamsForThisPick.length === 2 && teamsForThisPick.some(t => t.originalIndex === 0)) {
+                selectedTeam = teamsForThisPick.find(t => t.originalIndex === 0);
+            } else {
+                const selectedIndex = getRandomTeam(teamsForThisPick, rng);
+                if (selectedIndex === null) break;
+                selectedTeam = teamsForThisPick[selectedIndex];
             }
+        } else {
+            const selectedIndex = getRandomTeam(teamsForThisPick, rng);
+            if (selectedIndex === null) break;
+            selectedTeam = teamsForThisPick[selectedIndex];
         }
-        
-        const selectedIndex = getRandomTeam(teamsForThisPick);
-        if (selectedIndex === null) {
-            console.error('Failed to select a team');
-            break;
-        }
-        
-        // Find the actual index in availableTeams
-        const selectedTeam = teamsForThisPick[selectedIndex];
+
         const actualIndex = availableTeams.findIndex(t => t.originalIndex === selectedTeam.originalIndex);
-        
         top6Picks.push(selectedTeam);
         availableTeams.splice(actualIndex, 1);
     }
@@ -464,6 +492,14 @@ function runQuickLottery() {
         results[i] = teams[i];
     }
     
+    // Validate NBA rules: Team 1 cannot get 6th, Team 6 cannot get 5th
+    if (results[5]?.originalIndex === 0) {
+        console.error('Invalid lottery: Team 1 (worst) got 6th pick - NBA rule violated');
+    }
+    if (results[4]?.originalIndex === 5) {
+        console.error('Invalid lottery: Team 6 (best lottery) got 5th pick - NBA rule violated');
+    }
+
     // Preserve the originalIndex/seed so we can detect jumps later
     return results.map(team => {
         const teamIndex = typeof team.originalIndex === 'number'
@@ -520,28 +556,35 @@ function analyzeLotteryJumps(results) {
     };
 }
 
-// In the getRandomTeam function, make sure it handles edge cases better
-function getRandomTeam(availableTeams) {
+// Seeded RNG for reproducible lotteries (mulberry32). Returns function that yields [0, 1).
+function createSeededRNG(seed) {
+    return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+
+// Weighted random selection: probability of team i = chances[i] / totalChances.
+// randomFn: optional [0,1) RNG (e.g. from createSeededRNG) for reproducibility.
+function getRandomTeam(availableTeams, randomFn) {
     if (availableTeams.length === 0) {
         console.error('No teams available');
         return null;
     }
-    
+    const rand = randomFn || Math.random;
     const totalChances = availableTeams.reduce((sum, team) => sum + team.chances, 0);
-    
-    // Handle case where total chances is 0
+
     if (totalChances <= 0) {
-        // Just pick randomly if there are no weighted chances
-        return Math.floor(Math.random() * availableTeams.length);
+        return Math.floor(rand() * availableTeams.length);
     }
-    
-    let random = Math.random() * totalChances;
-    
+
+    const r = rand() * totalChances;
+    let cumulative = 0;
     for (let i = 0; i < availableTeams.length; i++) {
-        random -= availableTeams[i].chances;
-        if (random <= 0) {
-            return i;
-        }
+        cumulative += availableTeams[i].chances;
+        if (r < cumulative) return i;
     }
     return availableTeams.length - 1;
 }
@@ -606,19 +649,15 @@ function updateFullDraftOrder(lotteryResults) {
     }
 }
 
-// Modify the runLottery function to handle magic number with visible quick runs
+// Modify the runLottery function to handle magic number with visible quick runs (deterministic: Nth run = official result).
 function runLottery() {
-    console.log('Running lottery...');
-
     if (!teamsLocked) {
         alert('Please confirm the team order before running the lottery.');
         return;
     }
-    
-    // Get magic number
+
     const magicNumberInput = document.getElementById('magicNumber');
     const magicNumber = parseInt(magicNumberInput.value) || 1;
-    
     if (magicNumber < 1 || magicNumber > 99) {
         alert('Magic number must be between 1 and 99');
         return;
@@ -633,21 +672,22 @@ function runLottery() {
             teams[index].name = `Team ${index + 1}`;
         }
     });
-    
-    // Save team names
     saveTeamNames();
 
-    // Create full-screen lottery view
+    // Precompute N runs (each random). Previews show runs 1..N-1; the Nth run is the official result. Same magic number gives different results each time.
+    const precomputedResults = [];
+    for (let i = 0; i < magicNumber; i++) {
+        precomputedResults.push(runQuickLottery(null));
+    }
+
     const fullscreenView = document.createElement('div');
     fullscreenView.className = 'lottery-fullscreen';
     document.body.appendChild(fullscreenView);
-    
-    // Create content container
+
     const contentContainer = document.createElement('div');
     contentContainer.className = 'lottery-content';
     fullscreenView.appendChild(contentContainer);
-    
-    // Add close button
+
     const closeButton = document.createElement('button');
     closeButton.className = 'close-button';
     closeButton.innerHTML = '&times;';
@@ -655,32 +695,25 @@ function runLottery() {
         document.body.removeChild(fullscreenView);
     });
     contentContainer.appendChild(closeButton);
-    
-    // Add title
+
     const title = document.createElement('h2');
     title.className = 'lottery-title';
     title.textContent = `Zim's Dynasty League Draft Lottery (Magic Number: ${magicNumber})`;
     contentContainer.appendChild(title);
-    
-    // Create animation container
+
     const animationContainer = document.createElement('div');
     animationContainer.className = 'lottery-animation-container';
     contentContainer.appendChild(animationContainer);
 
-    // Function to run quick iterations with visual feedback
     function runQuickIterations(currentIteration) {
         if (currentIteration < magicNumber - 1) {
-            // Show iteration number
             const iterationMsg = document.createElement('div');
             iterationMsg.className = 'iteration-number';
             iterationMsg.textContent = `Lottery Results ${currentIteration + 1} of ${magicNumber - 1}`;
             animationContainer.innerHTML = '';
             animationContainer.appendChild(iterationMsg);
 
-            // Run the quick lottery
-            const quickResults = runQuickLottery();
-            
-            // Create podium display
+            const quickResults = precomputedResults[currentIteration];
             const podiumContainer = document.createElement('div');
             podiumContainer.className = 'quick-iteration-podium';
             
@@ -707,22 +740,17 @@ function runLottery() {
             
             animationContainer.appendChild(podiumContainer);
 
-            // Continue to next iteration after a short delay
             setTimeout(() => {
                 runQuickIterations(currentIteration + 1);
             }, 800);
         } else {
-            // Start the final lottery animation
-            runFinalLottery();
+            runFinalLottery(precomputedResults[magicNumber - 1]);
         }
     }
 
-    // Function to run the final lottery with full animation
-    function runFinalLottery() {
-        // Clear the animation container
+    function runFinalLottery(officialResult) {
         animationContainer.innerHTML = '';
 
-        // Show calculating message
         const calculatingMsg = document.createElement('div');
         calculatingMsg.className = 'fullscreen-calculating';
         calculatingMsg.textContent = 'Calculating the FINAL draft order...';
@@ -749,8 +777,7 @@ function runLottery() {
         `;
         document.head.appendChild(calcAnimStyle);
 
-        // Run the actual lottery
-        const results = runQuickLottery();
+        const results = officialResult;
         const jumpAnalysis = analyzeLotteryJumps(results);
         const PICK_DELAY_MS = 3000;
         const PICK_DELAY_SECONDS = PICK_DELAY_MS / 1000;
@@ -1105,18 +1132,21 @@ function runLottery() {
                 }
             }
             
-            // Function to finish the reveal process
             function finishReveal() {
-                // Clear the drumroll area
                 drumrollArea.innerHTML = '';
-                
-                // Show complete message - larger
+
+                lastLotteryResult = {
+                    results,
+                    magicNumber,
+                    timestamp: new Date().toISOString()
+                };
+
                 const completeMsg = document.createElement('div');
                 completeMsg.className = 'fullscreen-complete';
                 completeMsg.textContent = 'Draft lottery complete!';
                 completeMsg.style.marginTop = '3rem';
                 completeMsg.style.textAlign = 'center';
-                completeMsg.style.fontSize = '2rem'; // Larger text
+                completeMsg.style.fontSize = '2rem';
                 completeMsg.style.fontWeight = 'bold';
                 completeMsg.style.color = '#28a745';
                 completeMsg.style.padding = '1.5rem';
@@ -1126,25 +1156,45 @@ function runLottery() {
                 completeMsg.style.maxWidth = '800px';
                 completeMsg.style.margin = '3rem auto';
                 animationContainer.appendChild(completeMsg);
-                
-                // Update the regular results div and draft order
+
                 updateResultsDiv(results);
                 updateFullDraftOrder(results);
-                
-                // Add view full results button - larger
+
+                const btnWrap = document.createElement('div');
+                btnWrap.style.display = 'flex';
+                btnWrap.style.flexWrap = 'wrap';
+                btnWrap.style.gap = '0.75rem';
+                btnWrap.style.justifyContent = 'center';
+                btnWrap.style.marginTop = '1.5rem';
+
                 const viewResultsBtn = document.createElement('button');
                 viewResultsBtn.textContent = 'View Full Draft Order';
                 viewResultsBtn.className = 'lottery-button';
-                viewResultsBtn.style.margin = '3rem auto';
-                viewResultsBtn.style.padding = '1.2rem 2.5rem';
-                viewResultsBtn.style.fontSize = '1.5rem';
-                viewResultsBtn.style.display = 'block';
-                
-                viewResultsBtn.addEventListener('click', () => {
-                    document.body.removeChild(fullscreenView);
-                });
-                
-                animationContainer.appendChild(viewResultsBtn);
+                viewResultsBtn.addEventListener('click', () => document.body.removeChild(fullscreenView));
+                btnWrap.appendChild(viewResultsBtn);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.textContent = 'Copy to clipboard';
+                copyBtn.className = 'lottery-button';
+                copyBtn.style.background = 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)';
+                copyBtn.addEventListener('click', () => exportCopyToClipboard());
+                btnWrap.appendChild(copyBtn);
+
+                const jsonBtn = document.createElement('button');
+                jsonBtn.textContent = 'Download JSON';
+                jsonBtn.className = 'lottery-button';
+                jsonBtn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+                jsonBtn.addEventListener('click', () => exportDownloadJSON());
+                btnWrap.appendChild(jsonBtn);
+
+                const csvBtn = document.createElement('button');
+                csvBtn.textContent = 'Download CSV';
+                csvBtn.className = 'lottery-button';
+                csvBtn.style.background = 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)';
+                csvBtn.addEventListener('click', () => exportDownloadCSV());
+                btnWrap.appendChild(csvBtn);
+
+                animationContainer.appendChild(btnWrap);
             }
             
             // Start the reveal process
@@ -1187,12 +1237,59 @@ function runLottery() {
         }
     }
 
-    // Start the process with the quick iterations
     if (magicNumber > 1) {
         runQuickIterations(0);
     } else {
-        runFinalLottery();
+        runFinalLottery(precomputedResults[0]);
     }
+}
+
+function exportCopyToClipboard() {
+    if (!lastLotteryResult || !lastLotteryResult.results) {
+        alert('No lottery results to copy.');
+        return;
+    }
+    const lines = ['Draft order (Round 1)', ''];
+    lastLotteryResult.results.forEach((team, i) => {
+        lines.push(`${i + 1}. ${team.name}`);
+    });
+    lines.push(`Magic number: ${lastLotteryResult.magicNumber}`, lastLotteryResult.timestamp);
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard.')).catch(() => alert('Could not copy.'));
+}
+
+function exportDownloadJSON() {
+    if (!lastLotteryResult || !lastLotteryResult.results) {
+        alert('No lottery results to download.');
+        return;
+    }
+    const payload = {
+        magicNumber: lastLotteryResult.magicNumber,
+        timestamp: lastLotteryResult.timestamp,
+        order: lastLotteryResult.results.map((t, i) => ({ pick: i + 1, team: t.name }))
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `lottery-${lastLotteryResult.timestamp.slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function exportDownloadCSV() {
+    if (!lastLotteryResult || !lastLotteryResult.results) {
+        alert('No lottery results to download.');
+        return;
+    }
+    const rows = [['Pick', 'Team']];
+    lastLotteryResult.results.forEach((t, i) => rows.push([i + 1, t.name]));
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `lottery-${lastLotteryResult.timestamp.slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
 }
 
 // Completely override the order of display in the results div to ensure consistency
@@ -1276,7 +1373,6 @@ function updateResultsDiv(results) {
     // Add the container to the results div
     resultsDiv.appendChild(container);
     
-    // Add the completion message
     const completeMsg = document.createElement('div');
     completeMsg.className = 'complete-message';
     completeMsg.textContent = 'Draft lottery complete!';
@@ -1287,24 +1383,44 @@ function updateResultsDiv(results) {
     completeMsg.style.marginTop = '1rem';
     completeMsg.style.borderRadius = '8px';
     completeMsg.style.fontWeight = 'bold';
-    
     resultsDiv.appendChild(completeMsg);
+
+    if (lastLotteryResult) {
+        const exportWrap = document.createElement('div');
+        exportWrap.style.display = 'flex';
+        exportWrap.style.flexWrap = 'wrap';
+        exportWrap.style.gap = '0.5rem';
+        exportWrap.style.marginTop = '0.75rem';
+        exportWrap.style.justifyContent = 'center';
+        ['Copy', 'Download JSON', 'Download CSV'].forEach((label, idx) => {
+            const btn = document.createElement('button');
+            btn.textContent = label;
+            btn.className = 'lottery-button';
+            btn.style.padding = '0.5rem 1rem';
+            btn.style.fontSize = '0.9rem';
+            if (idx === 1) btn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+            if (idx === 2) btn.style.background = 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)';
+            if (idx === 0) btn.onclick = exportCopyToClipboard;
+            if (idx === 1) btn.onclick = exportDownloadJSON;
+            if (idx === 2) btn.onclick = exportDownloadCSV;
+            exportWrap.appendChild(btn);
+        });
+        resultsDiv.appendChild(exportWrap);
+    }
 }
 
-// Initialize the page
 document.addEventListener('DOMContentLoaded', function() {
+    applyChancesToTeams();
     loadTeamLockState();
     createTeamInputs();
     applyTeamLockState();
     createOddsTable();
-    loadSavedPickOwnership(); // Load saved pick ownership
+    setTimeout(tuneChancesToMatchDisplayOdds, 50);
+    loadSavedPickOwnership();
     createPickOwnershipTable();
-    
-    // Hide the draft order section initially
+
     const draftOrderSection = document.querySelector('.draft-order-section');
-    if (draftOrderSection) {
-        draftOrderSection.style.display = 'none';
-    }
+    if (draftOrderSection) draftOrderSection.style.display = 'none';
 });
 
 // Make sure the function is available globally
