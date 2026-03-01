@@ -668,13 +668,14 @@ function updateFullDraftOrder(lotteryResults) {
     downloadWrap.style.justifyContent = 'center';
     const fullBtn = document.createElement('button');
     fullBtn.className = 'lottery-button';
-    fullBtn.textContent = 'Download full order';
+    fullBtn.textContent = 'Download full draft order';
     fullBtn.addEventListener('click', () => downloadFullDraftOrder(lotteryResults));
     const top10Btn = document.createElement('button');
     top10Btn.className = 'lottery-button';
-    top10Btn.textContent = 'Download top 10';
+    top10Btn.textContent = 'Download lottery results';
+    top10Btn.title = 'Original top 10 (before pick trades)';
     top10Btn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
-    top10Btn.addEventListener('click', () => downloadTop10(lotteryResults));
+    top10Btn.addEventListener('click', () => downloadOriginalTop10(lotteryResults));
     downloadWrap.appendChild(fullBtn);
     downloadWrap.appendChild(top10Btn);
     fullDraftOrderDiv.appendChild(downloadWrap);
@@ -708,17 +709,17 @@ function downloadFullDraftOrder(lotteryResults) {
     URL.revokeObjectURL(a.href);
 }
 
-function downloadTop10(lotteryResults) {
-    const rows = getFullDraftOrderData(lotteryResults).slice(0, 10);
-    const lines = ['Round 1', ''];
-    rows.forEach(r => {
-        lines.push(`${r.pickNumber}. ${r.teamName}${r.viaName ? ` (via ${r.viaName})` : ''}`);
-    });
+// Original top 10 from the lottery only (no pick trades).
+function downloadOriginalTop10(lotteryResults) {
+    const lines = ['Round 1 – original lottery order (before trades)', ''];
+    for (let i = 0; i < 10 && i < lotteryResults.length; i++) {
+        lines.push(`${i + 1}. ${lotteryResults[i].name}`);
+    }
     const text = lines.join('\n');
     const blob = new Blob([text], { type: 'text/plain' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'draft-order-top10.txt';
+    a.download = 'draft-order-original-top10.txt';
     a.click();
     URL.revokeObjectURL(a.href);
 }

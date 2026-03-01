@@ -20,10 +20,12 @@ A web-based lottery simulator for fantasy sports draft order (e.g. Zim's Dynasty
 - Assign any pick to any team (trades); saved in local storage
 - Full draft order reflects lottery result + ownership
 
-### Visual
+### Visual & exports
 - Podium displays for quick-run results (gold/silver/bronze for top 3)
 - Fullscreen final lottery reveal with animations
 - Full draft order shown after the lottery
+- **Download full draft order** — full 3-round order as a text file (with pick trades applied; shows “via” when a pick was traded)
+- **Download lottery results** — original top 10 only (lottery result before any trades), as a text file
 
 ## Lottery Odds
 
@@ -48,7 +50,7 @@ Teams 1–6 correspond to **10th seed (worst)** through **5th seed (best)** in t
 3. **Pick ownership (optional)** — In the table, set which team owns each pick for each round if picks have been traded.
 4. **Magic number** — Enter 1–99. The app runs that many lotteries; the **Nth** run is the official result.
 5. **Run lottery** — Click “Run Lottery” to see preview runs (if N > 1) and then the final draft order.
-6. **Draft order** — View and use the full 3-round draft order; export via Copy / Download JSON / Download CSV if needed.
+6. **Draft order** — View the full 3-round draft order on the page. Use **Download full draft order** for the complete order (with trades) or **Download lottery results** for the original top 10 only (before trades).
 
 ## Data Persistence
 
