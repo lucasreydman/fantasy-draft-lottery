@@ -589,6 +589,22 @@ function getRandomTeam(availableTeams, randomFn) {
     return availableTeams.length - 1;
 }
 
+// Build full draft order data (all 30 picks with ownership). Returns array of { pickNumber, teamName, viaName? }.
+function getFullDraftOrderData(lotteryResults) {
+    const rows = [];
+    for (let round = 0; round < 3; round++) {
+        for (let pick = 0; pick < 10; pick++) {
+            const originalTeamIndex = lotteryResults[pick].name === teams[pick].name ? pick : teams.findIndex(t => t.name === lotteryResults[pick].name);
+            const ownerTeamIndex = pickOwnership[round][originalTeamIndex] !== null ? pickOwnership[round][originalTeamIndex] : originalTeamIndex;
+            const pickNumber = round * 10 + pick + 1;
+            const teamName = teams[ownerTeamIndex].name;
+            const viaName = ownerTeamIndex !== originalTeamIndex ? teams[originalTeamIndex].name : null;
+            rows.push({ pickNumber, teamName, viaName });
+        }
+    }
+    return rows;
+}
+
 // Update the full draft order based on lottery results and pick ownership
 function updateFullDraftOrder(lotteryResults) {
     const fullDraftOrderDiv = document.getElementById('fullDraftOrder');
@@ -642,11 +658,69 @@ function updateFullDraftOrder(lotteryResults) {
         fullDraftOrderDiv.appendChild(roundDiv);
     }
     
+    // Download buttons (full order and top 10 only)
+    const downloadWrap = document.createElement('div');
+    downloadWrap.className = 'draft-order-downloads';
+    downloadWrap.style.display = 'flex';
+    downloadWrap.style.flexWrap = 'wrap';
+    downloadWrap.style.gap = '0.75rem';
+    downloadWrap.style.marginTop = '1rem';
+    downloadWrap.style.justifyContent = 'center';
+    const fullBtn = document.createElement('button');
+    fullBtn.className = 'lottery-button';
+    fullBtn.textContent = 'Download full order';
+    fullBtn.addEventListener('click', () => downloadFullDraftOrder(lotteryResults));
+    const top10Btn = document.createElement('button');
+    top10Btn.className = 'lottery-button';
+    top10Btn.textContent = 'Download top 10';
+    top10Btn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+    top10Btn.addEventListener('click', () => downloadTop10(lotteryResults));
+    downloadWrap.appendChild(fullBtn);
+    downloadWrap.appendChild(top10Btn);
+    fullDraftOrderDiv.appendChild(downloadWrap);
+    
     // Make the draft order section visible
     const draftOrderSection = document.querySelector('.draft-order-section');
     if (draftOrderSection) {
         draftOrderSection.style.display = 'block';
     }
+}
+
+function downloadFullDraftOrder(lotteryResults) {
+    const rows = getFullDraftOrderData(lotteryResults);
+    const lines = [];
+    let round = 1;
+    for (let i = 0; i < rows.length; i++) {
+        if (i % 10 === 0) {
+            if (i > 0) lines.push('');
+            lines.push(`Round ${round}`);
+            round++;
+        }
+        const r = rows[i];
+        lines.push(`${r.pickNumber}. ${r.teamName}${r.viaName ? ` (via ${r.viaName})` : ''}`);
+    }
+    const text = lines.join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'draft-order-full.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function downloadTop10(lotteryResults) {
+    const rows = getFullDraftOrderData(lotteryResults).slice(0, 10);
+    const lines = ['Round 1', ''];
+    rows.forEach(r => {
+        lines.push(`${r.pickNumber}. ${r.teamName}${r.viaName ? ` (via ${r.viaName})` : ''}`);
+    });
+    const text = lines.join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'draft-order-top10.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
 }
 
 // Modify the runLottery function to handle magic number with visible quick runs (deterministic: Nth run = official result).
@@ -1170,30 +1244,11 @@ function runLottery() {
                 const viewResultsBtn = document.createElement('button');
                 viewResultsBtn.textContent = 'View Full Draft Order';
                 viewResultsBtn.className = 'lottery-button';
-                viewResultsBtn.addEventListener('click', () => document.body.removeChild(fullscreenView));
+                viewResultsBtn.addEventListener('click', () => {
+                    document.body.removeChild(fullscreenView);
+                    document.querySelector('.draft-order-section')?.scrollIntoView({ behavior: 'smooth' });
+                });
                 btnWrap.appendChild(viewResultsBtn);
-
-                const copyBtn = document.createElement('button');
-                copyBtn.textContent = 'Copy to clipboard';
-                copyBtn.className = 'lottery-button';
-                copyBtn.style.background = 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)';
-                copyBtn.addEventListener('click', () => exportCopyToClipboard());
-                btnWrap.appendChild(copyBtn);
-
-                const jsonBtn = document.createElement('button');
-                jsonBtn.textContent = 'Download JSON';
-                jsonBtn.className = 'lottery-button';
-                jsonBtn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
-                jsonBtn.addEventListener('click', () => exportDownloadJSON());
-                btnWrap.appendChild(jsonBtn);
-
-                const csvBtn = document.createElement('button');
-                csvBtn.textContent = 'Download CSV';
-                csvBtn.className = 'lottery-button';
-                csvBtn.style.background = 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)';
-                csvBtn.addEventListener('click', () => exportDownloadCSV());
-                btnWrap.appendChild(csvBtn);
-
                 animationContainer.appendChild(btnWrap);
             }
             
@@ -1242,54 +1297,6 @@ function runLottery() {
     } else {
         runFinalLottery(precomputedResults[0]);
     }
-}
-
-function exportCopyToClipboard() {
-    if (!lastLotteryResult || !lastLotteryResult.results) {
-        alert('No lottery results to copy.');
-        return;
-    }
-    const lines = ['Draft order (Round 1)', ''];
-    lastLotteryResult.results.forEach((team, i) => {
-        lines.push(`${i + 1}. ${team.name}`);
-    });
-    lines.push(`Magic number: ${lastLotteryResult.magicNumber}`, lastLotteryResult.timestamp);
-    const text = lines.join('\n');
-    navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard.')).catch(() => alert('Could not copy.'));
-}
-
-function exportDownloadJSON() {
-    if (!lastLotteryResult || !lastLotteryResult.results) {
-        alert('No lottery results to download.');
-        return;
-    }
-    const payload = {
-        magicNumber: lastLotteryResult.magicNumber,
-        timestamp: lastLotteryResult.timestamp,
-        order: lastLotteryResult.results.map((t, i) => ({ pick: i + 1, team: t.name }))
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `lottery-${lastLotteryResult.timestamp.slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-}
-
-function exportDownloadCSV() {
-    if (!lastLotteryResult || !lastLotteryResult.results) {
-        alert('No lottery results to download.');
-        return;
-    }
-    const rows = [['Pick', 'Team']];
-    lastLotteryResult.results.forEach((t, i) => rows.push([i + 1, t.name]));
-    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `lottery-${lastLotteryResult.timestamp.slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
 }
 
 // Completely override the order of display in the results div to ensure consistency
@@ -1385,28 +1392,6 @@ function updateResultsDiv(results) {
     completeMsg.style.fontWeight = 'bold';
     resultsDiv.appendChild(completeMsg);
 
-    if (lastLotteryResult) {
-        const exportWrap = document.createElement('div');
-        exportWrap.style.display = 'flex';
-        exportWrap.style.flexWrap = 'wrap';
-        exportWrap.style.gap = '0.5rem';
-        exportWrap.style.marginTop = '0.75rem';
-        exportWrap.style.justifyContent = 'center';
-        ['Copy', 'Download JSON', 'Download CSV'].forEach((label, idx) => {
-            const btn = document.createElement('button');
-            btn.textContent = label;
-            btn.className = 'lottery-button';
-            btn.style.padding = '0.5rem 1rem';
-            btn.style.fontSize = '0.9rem';
-            if (idx === 1) btn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
-            if (idx === 2) btn.style.background = 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)';
-            if (idx === 0) btn.onclick = exportCopyToClipboard;
-            if (idx === 1) btn.onclick = exportDownloadJSON;
-            if (idx === 2) btn.onclick = exportDownloadCSV;
-            exportWrap.appendChild(btn);
-        });
-        resultsDiv.appendChild(exportWrap);
-    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
