@@ -388,6 +388,11 @@ function createPickOwnershipTable() {
         placeholder.className = 'pick-ownership-placeholder';
         placeholder.textContent = 'Confirm the team order to manage pick ownership.';
         tableContainer.appendChild(placeholder);
+        const actionsContainer = document.getElementById('pickOwnershipActions');
+        if (actionsContainer) {
+            actionsContainer.innerHTML = '';
+            actionsContainer.style.display = 'none';
+        }
         return;
     }
 
@@ -488,38 +493,33 @@ function createPickOwnershipTable() {
     table.appendChild(tbody);
     tableContainer.appendChild(table);
 
-    // Confirm / Edit Pick Ownership button
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'pick-ownership-actions';
-    actionsDiv.style.marginTop = '1rem';
-    actionsDiv.style.display = 'flex';
-    actionsDiv.style.alignItems = 'center';
-    actionsDiv.style.gap = '0.75rem';
-    actionsDiv.style.flexWrap = 'wrap';
+    // Confirm / Edit Pick Ownership (same styling as Confirm Team Order)
+    const actionsContainer = document.getElementById('pickOwnershipActions');
+    if (actionsContainer) {
+        actionsContainer.style.display = '';
+        actionsContainer.innerHTML = '';
+        confirmPickOwnershipButton = document.createElement('button');
+        confirmPickOwnershipButton.type = 'button';
+        confirmPickOwnershipButton.id = 'confirmPickOwnership';
+        confirmPickOwnershipButton.className = 'team-confirm-button';
+        confirmPickOwnershipButton.textContent = pickOwnershipLocked ? 'Edit Pick Ownership' : 'Confirm Pick Ownership';
+        confirmPickOwnershipButton.classList.toggle('locked', pickOwnershipLocked);
+        confirmPickOwnershipButton.addEventListener('click', () => {
+            if (pickOwnershipLocked) unlockPickOwnership();
+            else lockPickOwnership();
+        });
 
-    confirmPickOwnershipButton = document.createElement('button');
-    confirmPickOwnershipButton.type = 'button';
-    confirmPickOwnershipButton.id = 'confirmPickOwnership';
-    confirmPickOwnershipButton.className = 'lottery-button';
-    confirmPickOwnershipButton.textContent = pickOwnershipLocked ? 'Edit Pick Ownership' : 'Confirm Pick Ownership';
-    confirmPickOwnershipButton.classList.toggle('locked', pickOwnershipLocked);
-    confirmPickOwnershipButton.addEventListener('click', () => {
-        if (pickOwnershipLocked) unlockPickOwnership();
-        else lockPickOwnership();
-    });
+        const statusText = document.createElement('p');
+        statusText.id = 'pickOwnershipStatus';
+        statusText.className = 'team-confirm-status';
+        statusText.classList.toggle('locked', pickOwnershipLocked);
+        statusText.textContent = pickOwnershipLocked
+            ? 'Pick ownership locked. You can run the lottery.'
+            : 'Confirm pick ownership to run the lottery.';
 
-    const statusSpan = document.createElement('span');
-    statusSpan.id = 'pickOwnershipStatus';
-    statusSpan.className = 'pick-ownership-status';
-    statusSpan.style.color = '#666';
-    statusSpan.style.fontSize = '0.9rem';
-    statusSpan.textContent = pickOwnershipLocked
-        ? 'Pick ownership locked. Run the lottery when ready.'
-        : 'Set which team owns each pick, then confirm to run the lottery.';
-
-    actionsDiv.appendChild(confirmPickOwnershipButton);
-    actionsDiv.appendChild(statusSpan);
-    tableContainer.appendChild(actionsDiv);
+        actionsContainer.appendChild(confirmPickOwnershipButton);
+        actionsContainer.appendChild(statusText);
+    }
 }
 
 // Run a single lottery. seed (optional): use createSeededRNG(seed) for reproducible result.
