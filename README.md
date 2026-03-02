@@ -6,8 +6,9 @@ A web-based lottery simulator for fantasy sports draft order (e.g. Zim's Dynasty
 
 ### Team Management
 - Customizable team names for 10 teams (dropdown + optional custom names)
-- Team order locked after confirmation so lottery and pick ownership are stable
-- Names and lock state saved in local storage
+- **Confirm team order** locks the team order and unlocks pick ownership
+- **Confirm pick ownership** locks picks and enables the lottery — everything is locked before the sim
+- Names and lock states saved in local storage
 
 ### Lottery System
 - **Weighted lottery** for picks 1–6; teams 7–10 keep their reverse order (no lottery)
@@ -46,17 +47,19 @@ Teams 1–6 correspond to **10th seed (worst)** through **5th seed (best)** in t
 ## Usage
 
 1. **Enter team names** — Choose a name for each slot (10th Seed through Champion). Each name can be used only once.
-2. **Confirm team order** — Click “Confirm Team Order” to lock the order and enable pick ownership and the lottery.
+2. **Confirm team order** — Click “Confirm Team Order” to lock the order and unlock the pick ownership table.
 3. **Pick ownership (optional)** — In the table, set which team owns each pick for each round if picks have been traded.
-4. **Magic number** — Enter 1–99. The app runs that many lotteries; the **Nth** run is the official result.
-5. **Run lottery** — Click “Run Lottery” to see preview runs (if N > 1) and then the final draft order.
-6. **Draft order** — View the full 3-round draft order on the page. Use **Download full draft order** for the complete order (with trades) or **Download lottery results** for the original top 10 only (before trades).
+4. **Confirm pick ownership** — Click “Confirm Pick Ownership” to lock picks and enable the lottery button.
+5. **Magic number** — Enter 1–99. The app runs that many lotteries; the **Nth** run is the official result.
+6. **Run lottery** — Click “Run Lottery” to see preview runs (if N > 1) and then the final draft order.
+7. **Draft order** — View the full 3-round draft order on the page. Use **Download full draft order** for the complete order (with trades) or **Download lottery results** for the original top 10 only (before trades).
 
 ## Data Persistence
 
 Stored in the browser’s local storage:
 - Team names
 - Team order lock state
+- Pick ownership lock state
 - Pick ownership (trades)
 
 ## Technical Details

@@ -11,7 +11,7 @@ const TEAM_NAME_OPTIONS = [
     "Sith's Nips",
     "Sleepy's Steppaz",
     "Teezy's Turtles",
-    "Zims Sims"
+    "Zim's Sims"
 ];
 
 const TEAM_LABELS = [
@@ -48,7 +48,9 @@ let odds = [
 const pickOwnership = Array(3).fill().map(() => Array(10).fill().map(() => null));
 
 let teamsLocked = false;
+let pickOwnershipLocked = false;
 let confirmTeamButton = null;
+let confirmPickOwnershipButton = null;
 
 // Last lottery result for export (set when lottery completes).
 let lastLotteryResult = null;
@@ -85,6 +87,22 @@ function saveTeamLockState() {
         localStorage.setItem('lotteryTeamsLocked', teamsLocked);
     } catch (error) {
         console.warn('Unable to save team lock state', error);
+    }
+}
+
+function loadPickOwnershipLockState() {
+    try {
+        pickOwnershipLocked = localStorage.getItem('lotteryPickOwnershipLocked') === 'true';
+    } catch (error) {
+        pickOwnershipLocked = false;
+    }
+}
+
+function savePickOwnershipLockState() {
+    try {
+        localStorage.setItem('lotteryPickOwnershipLocked', pickOwnershipLocked);
+    } catch (error) {
+        console.warn('Unable to save pick ownership lock state', error);
     }
 }
 
@@ -206,10 +224,13 @@ function applyTeamLockState() {
     const statusText = document.getElementById('teamConfirmStatus');
     if (statusText) {
         statusText.textContent = teamsLocked
-            ? 'Team order locked. You can now manage pick ownership and run the lottery.'
-            : 'Confirm the team order to unlock pick ownership and the lottery.';
+            ? (pickOwnershipLocked
+                ? 'Team order and pick ownership locked. You can run the lottery.'
+                : 'Team order locked. Set pick ownership and confirm to run the lottery.')
+            : 'Confirm the team order to manage pick ownership.';
         statusText.classList.toggle('locked', teamsLocked);
     }
+    applyLotteryButtonState();
 }
 
 function handleConfirmTeamOrder() {
@@ -264,9 +285,33 @@ function lockTeams() {
 
 function unlockTeams() {
     teamsLocked = false;
+    pickOwnershipLocked = false;
     saveTeamLockState();
+    savePickOwnershipLockState();
     applyTeamLockState();
     createPickOwnershipTable();
+}
+
+function lockPickOwnership() {
+    pickOwnershipLocked = true;
+    savePickOwnershipLockState();
+    createPickOwnershipTable();
+    applyTeamLockState();
+}
+
+function unlockPickOwnership() {
+    pickOwnershipLocked = false;
+    savePickOwnershipLockState();
+    createPickOwnershipTable();
+    applyTeamLockState();
+}
+
+function applyLotteryButtonState() {
+    const btn = document.getElementById('lotteryButton');
+    if (!btn) return;
+    const canRun = teamsLocked && pickOwnershipLocked;
+    btn.disabled = !canRun;
+    btn.title = canRun ? '' : (teamsLocked ? 'Confirm pick ownership to run the lottery.' : 'Confirm team order and pick ownership first.');
 }
 
 // Run Monte Carlo with current team chances; return 6x6 empirical odds (does not modify global odds).
@@ -426,7 +471,7 @@ function createPickOwnershipTable() {
                 ownerSelect.appendChild(option);
             });
             
-            // Add change event listener
+            ownerSelect.disabled = pickOwnershipLocked;
             ownerSelect.addEventListener('change', function() {
                 const selectedTeamIndex = this.value === '' ? null : parseInt(this.value);
                 pickOwnership[round][pick] = selectedTeamIndex;
@@ -442,6 +487,39 @@ function createPickOwnershipTable() {
     
     table.appendChild(tbody);
     tableContainer.appendChild(table);
+
+    // Confirm / Edit Pick Ownership button
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'pick-ownership-actions';
+    actionsDiv.style.marginTop = '1rem';
+    actionsDiv.style.display = 'flex';
+    actionsDiv.style.alignItems = 'center';
+    actionsDiv.style.gap = '0.75rem';
+    actionsDiv.style.flexWrap = 'wrap';
+
+    confirmPickOwnershipButton = document.createElement('button');
+    confirmPickOwnershipButton.type = 'button';
+    confirmPickOwnershipButton.id = 'confirmPickOwnership';
+    confirmPickOwnershipButton.className = 'lottery-button';
+    confirmPickOwnershipButton.textContent = pickOwnershipLocked ? 'Edit Pick Ownership' : 'Confirm Pick Ownership';
+    confirmPickOwnershipButton.classList.toggle('locked', pickOwnershipLocked);
+    confirmPickOwnershipButton.addEventListener('click', () => {
+        if (pickOwnershipLocked) unlockPickOwnership();
+        else lockPickOwnership();
+    });
+
+    const statusSpan = document.createElement('span');
+    statusSpan.id = 'pickOwnershipStatus';
+    statusSpan.className = 'pick-ownership-status';
+    statusSpan.style.color = '#666';
+    statusSpan.style.fontSize = '0.9rem';
+    statusSpan.textContent = pickOwnershipLocked
+        ? 'Pick ownership locked. Run the lottery when ready.'
+        : 'Set which team owns each pick, then confirm to run the lottery.';
+
+    actionsDiv.appendChild(confirmPickOwnershipButton);
+    actionsDiv.appendChild(statusSpan);
+    tableContainer.appendChild(actionsDiv);
 }
 
 // Run a single lottery. seed (optional): use createSeededRNG(seed) for reproducible result.
@@ -728,6 +806,10 @@ function downloadOriginalTop10(lotteryResults) {
 function runLottery() {
     if (!teamsLocked) {
         alert('Please confirm the team order before running the lottery.');
+        return;
+    }
+    if (!pickOwnershipLocked) {
+        alert('Please confirm pick ownership before running the lottery.');
         return;
     }
 
@@ -1398,12 +1480,14 @@ function updateResultsDiv(results) {
 document.addEventListener('DOMContentLoaded', function() {
     applyChancesToTeams();
     loadTeamLockState();
+    loadPickOwnershipLockState();
     createTeamInputs();
     applyTeamLockState();
     createOddsTable();
     setTimeout(tuneChancesToMatchDisplayOdds, 50);
     loadSavedPickOwnership();
     createPickOwnershipTable();
+    applyLotteryButtonState();
 
     const draftOrderSection = document.querySelector('.draft-order-section');
     if (draftOrderSection) draftOrderSection.style.display = 'none';
