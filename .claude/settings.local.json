@@ -17,7 +17,8 @@
       "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"sports dashboard\" --domain color -n 10)",
       "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"gaming entertainment\" --domain style -n 10)",
       "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"dashboard\" --domain typography -n 5)",
-      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"animation\" --domain ux -n 10)"
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"animation\" --domain ux -n 10)",
+      "Bash(git reset:*)"
     ]
   }
 }
