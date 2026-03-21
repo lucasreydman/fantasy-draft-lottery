@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="images/favicon.png">
 </head>
 <body>
     <div class="container">
@@ -83,6 +84,10 @@
                 <!-- Will be populated by JavaScript after lottery runs -->
             </div>
         </section>
+
+        <div class="reset-container">
+            <button type="button" class="reset-button" id="resetButton">Reset All Data</button>
+        </div>
     </div>
 
     <script src="js/lottery.js"></script>
@@ -90,6 +95,17 @@
         document.addEventListener('DOMContentLoaded', function() {
             const button = document.getElementById('lotteryButton');
             if (button) button.addEventListener('click', runLottery);
+
+            const resetBtn = document.getElementById('resetButton');
+            if (resetBtn) resetBtn.addEventListener('click', function() {
+                if (confirm('This will clear all saved teams, pick ownership, and lock states. Continue?')) {
+                    localStorage.removeItem('lotteryTeamNames');
+                    localStorage.removeItem('lotteryTeamsLocked');
+                    localStorage.removeItem('lotteryPickOwnershipLocked');
+                    localStorage.removeItem('lotteryPickOwnership');
+                    location.reload();
+                }
+            });
         });
     </script>
 </body>
