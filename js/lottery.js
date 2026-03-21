@@ -779,7 +779,7 @@ function runLottery() {
 
     const title = document.createElement('h2');
     title.className = 'lottery-title';
-    title.textContent = `Zim's Dynasty League Draft Lottery (Magic Number: ${magicNumber})`;
+    title.textContent = `The People's Dynasty League Draft Lottery (Magic Number: ${magicNumber})`;
     contentContainer.appendChild(title);
 
     const animationContainer = document.createElement('div');

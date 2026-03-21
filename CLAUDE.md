@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Fantasy Draft Lottery Simulator — a web-based NBA-style lottery for Zim's Dynasty League. Pure HTML/CSS/JS, no build tools, no frameworks. Single-page app served from `index.html`.
+Fantasy Draft Lottery Simulator — a web-based NBA-style lottery for The People's Dynasty League. Pure HTML/CSS/JS, no build tools, no frameworks. Single-page app served from `index.html`.
 
 ## File Structure
 

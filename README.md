@@ -1,6 +1,6 @@
 # Fantasy Draft Lottery Simulator
 
-A web-based NBA-style lottery simulator for fantasy sports draft order (e.g. Zim's Dynasty League). Uses the exact same mechanism as the real NBA Draft Lottery — fixed combinations, sequential draws with redraw rules, and remaining picks by reverse record.
+A web-based NBA-style lottery simulator for fantasy sports draft order (e.g. The People's Dynasty League). Uses the exact same mechanism as the real NBA Draft Lottery — fixed combinations, sequential draws with redraw rules, and remaining picks by reverse record.
 
 ## Features
 
