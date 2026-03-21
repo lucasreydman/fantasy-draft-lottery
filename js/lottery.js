@@ -1086,7 +1086,7 @@ function runLottery() {
                     if (jumperHighlight) {
                         podiumPlace.style.boxShadow = '0 0 40px rgba(255, 215, 0, 0.85)';
                         const chaosBadge = document.createElement('div');
-                        chaosBadge.textContent = `Seed ${formatOrdinal(jumperHighlight.fromSeed)} leaps into Pick ${position + 1}!`;
+                        chaosBadge.textContent = 'Lucky Leap!';
                         chaosBadge.style.marginTop = '1rem';
                         chaosBadge.style.fontSize = '1.3rem';
                         chaosBadge.style.fontWeight = 'bold';
