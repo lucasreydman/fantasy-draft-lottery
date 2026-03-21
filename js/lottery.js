@@ -763,6 +763,7 @@ function runLottery() {
     closeButton.setAttribute('aria-label', 'Close lottery results');
     closeButton.addEventListener('click', () => {
         document.body.removeChild(fullscreenView);
+        document.querySelector('.draft-order-section')?.scrollIntoView({ behavior: 'smooth' });
     });
     contentContainer.appendChild(closeButton);
 
@@ -771,6 +772,7 @@ function runLottery() {
         if (e.key === 'Escape') {
             if (fullscreenView.parentNode) {
                 document.body.removeChild(fullscreenView);
+                document.querySelector('.draft-order-section')?.scrollIntoView({ behavior: 'smooth' });
             }
             document.removeEventListener('keydown', handleEsc);
         }
@@ -1065,6 +1067,7 @@ function runLottery() {
                 btnWrap.appendChild(viewResultsBtn);
                 animationContainer.appendChild(btnWrap);
                 viewResultsBtn.focus();
+                btnWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
             setTimeout(() => {
