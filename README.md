@@ -22,11 +22,23 @@ A web-based NBA-style lottery simulator for fantasy sports draft order (e.g. Zim
 - Full draft order reflects lottery result + ownership
 
 ### Visual & Exports
+- Dark theme UI with blue/gold sports-broadcast aesthetic
 - Podium displays for quick-run results (gold/silver/bronze for top 3)
-- Fullscreen final lottery reveal with animations
+- Fullscreen final lottery reveal with spring-easing animations
+- "Lucky Leap!" badges for upsets, "Shock drop!" alerts for fallers
+- Countdown timer overlay during top-4 reveal
 - Full draft order shown after the lottery
 - **Download full draft order** — full 3-round order as a text file (with pick trades applied; shows "via" when a pick was traded)
 - **Download lottery results** — original top 10 only (lottery result before any trades), as a text file
+- Toast notifications for validation feedback (no browser alert dialogs)
+
+### Accessibility
+- ARIA labels on all interactive elements and the fullscreen modal
+- ESC key closes the lottery modal
+- Focus management — focus moves to modal on open
+- `prefers-reduced-motion` respected — animations disabled for users who prefer reduced motion
+- WCAG AA contrast ratios on dark theme
+- Semantic `label[for]` attributes on form inputs
 
 ## Lottery Odds
 
@@ -159,7 +171,10 @@ The mechanism is identical. The only differences are scale (6 lottery teams inst
 
 ## Technical Details
 
-- **Stack:** HTML5, CSS3, vanilla JavaScript
+- **Stack:** HTML5, CSS3, vanilla JavaScript — no build tools, no frameworks
+- **Fonts:** Inter (UI) + JetBrains Mono (numbers/data) via Google Fonts
+- **Styling:** CSS custom properties (design tokens) for colors, spacing, shadows, transitions. Dark theme default.
+- **Hosting:** Static files — works on GitHub Pages, Netlify, or any static host with zero configuration
 - **Randomness:** Every lottery run uses `Math.random()` — fully random, never seeded, never reproducible. Each run is unique.
 - **Odds table:** Hardcoded from the known combination counts and verified against 5,000,000 simulated lotteries. The probabilities are mathematical facts of the combination system.
 - **Combination counts:** `[224, 224, 224, 224, 60, 45]` — 1,000 assigned + 1 discarded = 1,001 total. Stored as the constant `COMBINATIONS` in code.

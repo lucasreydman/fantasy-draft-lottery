@@ -1,6 +1,21 @@
+// ============================================
+// CONSTANTS
+// ============================================
+
 // Fixed lottery combinations — 1,001 possible (1 discarded = 1,000 used), just like the NBA.
 // Index 0 = 10th/worst … 5 = 5th; 6–9 = non-lottery teams (0 combinations).
 const COMBINATIONS = [224, 224, 224, 224, 60, 45, 0, 0, 0, 0];
+const TOTAL_POOL = 1001;
+const ASSIGNED = 1000;
+
+// Timing constants (ms)
+const ITERATION_DELAY_MS = 800;
+const PICK_DELAY_MS = 3000;
+const PICK_DELAY_SECONDS = PICK_DELAY_MS / 1000;
+const CALCULATING_DELAY_MS = 5000;
+const REVEAL_START_DELAY_MS = 1000;
+const NEXT_BUTTON_DELAY_MS = 1000;
+
 let currentChances = [...COMBINATIONS];
 
 const TEAM_NAME_OPTIONS = [
@@ -37,14 +52,13 @@ function applyChancesToTeams() {
 }
 
 // Odds table: fixed probabilities derived from 1,000 combinations (verified via 5M simulations).
-// Each row sums to 100%. These match the NBA-style draw mechanism exactly.
 const odds = [
-    [22.4, 21.9, 21.0, 19.1, 15.7,  0.0],   // Team 1 (10th seed) — 224 combos
-    [22.4, 21.8, 20.9, 19.1, 14.7,  0.9],   // Team 2 (9th seed)  — 224 combos
-    [22.4, 21.9, 20.9, 19.1, 13.8,  1.9],   // Team 3 (8th seed)  — 224 combos
-    [22.4, 21.9, 21.0, 19.1, 12.8,  2.8],   // Team 4 (7th seed)  — 224 combos
-    [ 6.0,  7.2,  9.2, 13.3, 43.0, 21.3],   // Team 5 (6th seed)  — 60 combos
-    [ 4.4,  5.4,  7.0, 10.3,  0.0, 73.0]    // Team 6 (5th seed)  — 45 combos
+    [22.4, 21.9, 21.0, 19.1, 15.7,  0.0],
+    [22.4, 21.8, 20.9, 19.1, 14.7,  0.9],
+    [22.4, 21.9, 20.9, 19.1, 13.8,  1.9],
+    [22.4, 21.9, 21.0, 19.1, 12.8,  2.8],
+    [ 6.0,  7.2,  9.2, 13.3, 43.0, 21.3],
+    [ 4.4,  5.4,  7.0, 10.3,  0.0, 73.0]
 ];
 
 // Initialize pick ownership data structure
@@ -54,11 +68,36 @@ let teamsLocked = false;
 let pickOwnershipLocked = false;
 let confirmTeamButton = null;
 let confirmPickOwnershipButton = null;
-
-// Last lottery result for export (set when lottery completes).
 let lastLotteryResult = null;
 
-// Load saved team names from localStorage
+// ============================================
+// TOAST NOTIFICATIONS (replaces alert())
+// ============================================
+
+function showToast(message, type = 'error') {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        container.setAttribute('role', 'alert');
+        container.setAttribute('aria-live', 'polite');
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 3200);
+}
+
+// ============================================
+// LOCAL STORAGE
+// ============================================
+
 function loadSavedTeamNames() {
     const savedTeams = localStorage.getItem('lotteryTeamNames');
     if (savedTeams) {
@@ -71,7 +110,6 @@ function loadSavedTeamNames() {
     }
 }
 
-// Save team names to localStorage
 function saveTeamNames() {
     const teamNames = teams.map(team => team.name);
     localStorage.setItem('lotteryTeamNames', JSON.stringify(teamNames));
@@ -109,15 +147,13 @@ function savePickOwnershipLockState() {
     }
 }
 
-// Load saved pick ownership from localStorage
 function loadSavedPickOwnership() {
     const savedOwnership = localStorage.getItem('lotteryPickOwnership');
     if (savedOwnership) {
         const parsedOwnership = JSON.parse(savedOwnership);
-        // Only copy valid values (non-null)
         for (let round = 0; round < 3; round++) {
             for (let pick = 0; pick < 10; pick++) {
-                if (parsedOwnership[round][pick] !== null) {
+                if (parsedOwnership[round] && parsedOwnership[round][pick] !== null) {
                     pickOwnership[round][pick] = parsedOwnership[round][pick];
                 }
             }
@@ -125,30 +161,33 @@ function loadSavedPickOwnership() {
     }
 }
 
-// Save pick ownership to localStorage
 function savePickOwnership() {
     localStorage.setItem('lotteryPickOwnership', JSON.stringify(pickOwnership));
 }
 
-// Create team input fields
+// ============================================
+// TEAM INPUTS
+// ============================================
+
 function createTeamInputs() {
     const teamInputsDiv = document.getElementById('teamInputs');
     if (!teamInputsDiv) return;
 
-    // Load saved team names before creating inputs
     loadSavedTeamNames();
-
     teamInputsDiv.innerHTML = '';
 
     teams.forEach((team, index) => {
         const row = document.createElement('div');
         row.className = 'team-input-row';
-        
+
         const label = document.createElement('label');
         label.textContent = `${TEAM_LABELS[index] || `Team ${index + 1}`}:`;
-        
+        label.setAttribute('for', `team-select-${index}`);
+
         const select = document.createElement('select');
         select.className = 'team-name-select';
+        select.id = `team-select-${index}`;
+        select.setAttribute('aria-label', `Select team for ${TEAM_LABELS[index]}`);
 
         const placeholderOption = document.createElement('option');
         placeholderOption.value = '';
@@ -181,7 +220,7 @@ function createTeamInputs() {
         } else {
             placeholderOption.selected = false;
         }
-        
+
         row.appendChild(label);
         row.appendChild(select);
         teamInputsDiv.appendChild(row);
@@ -208,6 +247,7 @@ function addTeamConfirmControls(teamInputsDiv) {
     const statusText = document.createElement('p');
     statusText.id = 'teamConfirmStatus';
     statusText.className = 'team-confirm-status';
+    statusText.setAttribute('aria-live', 'polite');
     actionsDiv.appendChild(statusText);
 
     parentSection.appendChild(actionsDiv);
@@ -241,18 +281,14 @@ function handleConfirmTeamOrder() {
         unlockTeams();
         return;
     }
-
-    if (!validateTeamSelections()) {
-        return;
-    }
-
+    if (!validateTeamSelections()) return;
     lockTeams();
 }
 
 function validateTeamSelections() {
     const selects = document.querySelectorAll('.team-input-row select');
     if (!selects.length) {
-        alert('No team inputs found.');
+        showToast('No team inputs found.');
         return false;
     }
 
@@ -260,16 +296,15 @@ function validateTeamSelections() {
     for (let i = 0; i < selects.length; i++) {
         const value = selects[i].value;
         if (!value) {
-            alert('Please select a name for every slot before confirming.');
+            showToast('Please select a name for every slot before confirming.');
             return false;
         }
         if (chosen.has(value)) {
-            alert('Each team name can only be used once. Please ensure all selections are unique.');
+            showToast('Each team name can only be used once. Please ensure all selections are unique.');
             return false;
         }
         chosen.add(value);
     }
-
     return true;
 }
 
@@ -317,6 +352,10 @@ function applyLotteryButtonState() {
     btn.title = canRun ? '' : (teamsLocked ? 'Confirm pick ownership to run the lottery.' : 'Confirm team order and pick ownership first.');
 }
 
+// ============================================
+// ODDS TABLE
+// ============================================
+
 function refreshOddsTableBody() {
     const tableBody = document.getElementById('oddsTableBody');
     if (!tableBody) return;
@@ -339,7 +378,10 @@ function createOddsTable() {
     refreshOddsTableBody();
 }
 
-// Create pick ownership table
+// ============================================
+// PICK OWNERSHIP TABLE
+// ============================================
+
 function createPickOwnershipTable() {
     const tableContainer = document.getElementById('pickOwnershipTable');
     if (!tableContainer) return;
@@ -359,108 +401,87 @@ function createPickOwnershipTable() {
         return;
     }
 
-    // Create table element
     const table = document.createElement('table');
     table.className = 'pick-ownership-table';
 
-    // Create table header
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    
-    const pickHeader = document.createElement('th');
-    pickHeader.textContent = 'Pick';
-    headerRow.appendChild(pickHeader);
-    
-    const originalTeamHeader = document.createElement('th');
-    originalTeamHeader.textContent = 'Original Team';
-    headerRow.appendChild(originalTeamHeader);
-    
-    const ownerHeader = document.createElement('th');
-    ownerHeader.textContent = 'Owned By';
-    headerRow.appendChild(ownerHeader);
-    
+
+    ['Pick', 'Original Team', 'Owned By'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        th.setAttribute('scope', 'col');
+        headerRow.appendChild(th);
+    });
+
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Create table body
     const tbody = document.createElement('tbody');
-    
-    // For each round
+
     for (let round = 0; round < 3; round++) {
-        // Add round header
         const roundHeaderRow = document.createElement('tr');
         roundHeaderRow.className = 'round-header';
-        
         const roundHeaderCell = document.createElement('td');
         roundHeaderCell.colSpan = 3;
         roundHeaderCell.textContent = `Round ${round + 1}`;
         roundHeaderRow.appendChild(roundHeaderCell);
-        
         tbody.appendChild(roundHeaderRow);
-        
-        // Add each pick in the round
+
         for (let pick = 0; pick < 10; pick++) {
             const row = document.createElement('tr');
-            
-            // Pick number cell
+
             const pickCell = document.createElement('td');
-            const pickNumber = round * 10 + pick + 1;
-            pickCell.textContent = pickNumber;
+            pickCell.textContent = round * 10 + pick + 1;
             row.appendChild(pickCell);
-            
-            // Original team cell
+
             const originalTeamCell = document.createElement('td');
             originalTeamCell.textContent = teams[pick].name;
             originalTeamCell.dataset.teamIndex = pick;
             originalTeamCell.className = 'original-team-cell';
             row.appendChild(originalTeamCell);
-            
-            // Owner dropdown cell
+
             const ownerCell = document.createElement('td');
             const ownerSelect = document.createElement('select');
-            
-            // Add default option
+            ownerSelect.setAttribute('aria-label', `Owner of pick ${round * 10 + pick + 1}`);
+
             const defaultOption = document.createElement('option');
             defaultOption.value = '';
             defaultOption.textContent = 'Select Team';
             ownerSelect.appendChild(defaultOption);
-            
-            // Add all teams as options
+
             teams.forEach((team, teamIndex) => {
                 const option = document.createElement('option');
                 option.value = teamIndex;
                 option.textContent = team.name;
-                
-                // Set selected if this team is the owner
                 if (pickOwnership[round][pick] === teamIndex) {
                     option.selected = true;
                 }
-                
                 ownerSelect.appendChild(option);
             });
-            
+
             ownerSelect.disabled = pickOwnershipLocked;
             ownerSelect.addEventListener('change', function() {
-                const selectedTeamIndex = this.value === '' ? null : parseInt(this.value);
+                const selectedTeamIndex = this.value === '' ? null : parseInt(this.value, 10);
                 pickOwnership[round][pick] = selectedTeamIndex;
                 savePickOwnership();
             });
-            
+
             ownerCell.appendChild(ownerSelect);
             row.appendChild(ownerCell);
-            
             tbody.appendChild(row);
         }
     }
-    
+
     table.appendChild(tbody);
     tableContainer.appendChild(table);
 
-    // Confirm / Edit Pick Ownership (same styling as Confirm Team Order)
+    // Confirm / Edit Pick Ownership button
     const actionsContainer = document.getElementById('pickOwnershipActions');
     if (actionsContainer) {
         actionsContainer.style.display = '';
         actionsContainer.innerHTML = '';
+
         confirmPickOwnershipButton = document.createElement('button');
         confirmPickOwnershipButton.type = 'button';
         confirmPickOwnershipButton.id = 'confirmPickOwnership';
@@ -475,6 +496,7 @@ function createPickOwnershipTable() {
         const statusText = document.createElement('p');
         statusText.id = 'pickOwnershipStatus';
         statusText.className = 'team-confirm-status';
+        statusText.setAttribute('aria-live', 'polite');
         statusText.classList.toggle('locked', pickOwnershipLocked);
         statusText.textContent = pickOwnershipLocked
             ? 'Pick ownership locked. You can run the lottery.'
@@ -485,11 +507,11 @@ function createPickOwnershipTable() {
     }
 }
 
-// Run a single lottery using Math.random(). True NBA-style: always draw from the full
-// 1,001 combination pool. Redraw if the discarded combo or an already-picked team is hit.
-// Picks 5-6 assigned by reverse record (no drawing).
-function runQuickLottery() {
+// ============================================
+// LOTTERY LOGIC
+// ============================================
 
+function runQuickLottery() {
     const lotteryTeams = teams.slice(0, 6).map((team, index) => ({
         ...team,
         originalIndex: index
@@ -497,37 +519,21 @@ function runQuickLottery() {
     const results = new Array(10);
     const drawnIndices = new Set();
     const drawnTeams = [];
-    const TOTAL_POOL = 1001; // 1,000 assigned + 1 discarded
-    const ASSIGNED = 1000;
     let totalRedraws = 0;
 
-    // Step 1: Draw picks 1-4 from the full 1,001 pool (NBA-style)
     for (let pick = 0; pick < 4; pick++) {
         while (true) {
             const r = Math.random() * TOTAL_POOL;
+            if (r >= ASSIGNED) { totalRedraws++; continue; }
 
-            // Discarded combination — redraw
-            if (r >= ASSIGNED) {
-                totalRedraws++;
-                continue;
-            }
-
-            // Map random number to a team
             let cumulative = 0;
             let hitTeam = null;
             for (let i = 0; i < lotteryTeams.length; i++) {
                 cumulative += lotteryTeams[i].chances;
-                if (r < cumulative) {
-                    hitTeam = lotteryTeams[i];
-                    break;
-                }
+                if (r < cumulative) { hitTeam = lotteryTeams[i]; break; }
             }
 
-            // Already-picked team — redraw (same as NBA re-pulling balls)
-            if (drawnIndices.has(hitTeam.originalIndex)) {
-                totalRedraws++;
-                continue;
-            }
+            if (drawnIndices.has(hitTeam.originalIndex)) { totalRedraws++; continue; }
 
             drawnIndices.add(hitTeam.originalIndex);
             drawnTeams.push(hitTeam);
@@ -535,35 +541,18 @@ function runQuickLottery() {
         }
     }
 
-    // Step 2: Picks 5-6 — remaining teams by reverse record (worst team gets pick 5)
-    // Lower originalIndex = worse team (idx 0 = 10th seed), so sort ascending
     const remaining = lotteryTeams.filter(t => !drawnIndices.has(t.originalIndex));
     remaining.sort((a, b) => a.originalIndex - b.originalIndex);
 
-    // Combine: picks 1-4 (drawn) + picks 5-6 (by record)
     const top6Picks = [...drawnTeams, ...remaining];
+    for (let i = 0; i < 6; i++) results[i] = top6Picks[i];
+    for (let i = 6; i < 10; i++) results[i] = teams[i];
 
-    // Place top 6 picks
-    for (let i = 0; i < 6; i++) {
-        results[i] = top6Picks[i];
-    }
-
-    // Step 3: Teams 7-10 are locked in reverse standing order
-    for (let i = 6; i < 10; i++) {
-        results[i] = teams[i];
-    }
-
-    // Preserve the originalIndex/seed so we can detect jumps later
     const mapped = results.map(team => {
         const teamIndex = typeof team.originalIndex === 'number'
             ? team.originalIndex
             : teams.findIndex(t => t.name === team.name);
-
-        return {
-            name: team.name,
-            chances: team.chances,
-            originalIndex: teamIndex
-        };
+        return { name: team.name, chances: team.chances, originalIndex: teamIndex };
     });
     mapped.redraws = totalRedraws;
     return mapped;
@@ -573,45 +562,31 @@ function analyzeLotteryJumps(results) {
     const jumpers = [];
     const fallers = [];
     const TOP_FOUR_SEED_MAX = 3;
-    
+
     results.forEach((team, index) => {
-        if (!team || typeof team.originalIndex !== 'number') {
-            return;
-        }
-        
+        if (!team || typeof team.originalIndex !== 'number') return;
+
         if (index < 4 && team.originalIndex > TOP_FOUR_SEED_MAX) {
-            jumpers.push({
-                team,
-                pick: index + 1,
-                fromSeed: team.originalIndex + 1
-            });
+            jumpers.push({ team, pick: index + 1, fromSeed: team.originalIndex + 1 });
         }
-        
         if ((index === 4 || index === 5) && team.originalIndex <= TOP_FOUR_SEED_MAX) {
-            fallers.push({
-                team,
-                pick: index + 1,
-                fromSeed: team.originalIndex + 1
-            });
+            fallers.push({ team, pick: index + 1, fromSeed: team.originalIndex + 1 });
         }
     });
-    
-    const jumpersByPick = new Map();
-    jumpers.forEach(entry => jumpersByPick.set(entry.pick, entry));
-    
-    const fallersByPick = new Map();
-    fallers.forEach(entry => fallersByPick.set(entry.pick, entry));
-    
+
     return {
         jumpers,
         fallers,
-        jumpersByPick,
-        fallersByPick,
+        jumpersByPick: new Map(jumpers.map(e => [e.pick, e])),
+        fallersByPick: new Map(fallers.map(e => [e.pick, e])),
         hasChaos: jumpers.length > 0 || fallers.length > 0
     };
 }
 
-// Build full draft order data (all 30 picks with ownership). Returns array of { pickNumber, teamName, viaName? }.
+// ============================================
+// DRAFT ORDER
+// ============================================
+
 function getFullDraftOrderData(lotteryResults) {
     const rows = [];
     for (let round = 0; round < 3; round++) {
@@ -627,86 +602,76 @@ function getFullDraftOrderData(lotteryResults) {
     return rows;
 }
 
-// Update the full draft order based on lottery results and pick ownership
 function updateFullDraftOrder(lotteryResults) {
     const fullDraftOrderDiv = document.getElementById('fullDraftOrder');
     if (!fullDraftOrderDiv) return;
-    
+
     fullDraftOrderDiv.innerHTML = '';
-    
-    // Create a container for each round
+
     for (let round = 0; round < 3; round++) {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'draft-round';
-        
+
         const roundTitle = document.createElement('h3');
         roundTitle.className = 'draft-round-title';
         roundTitle.textContent = `Round ${round + 1}`;
         roundDiv.appendChild(roundTitle);
-        
-        // For each pick in the round
+
         for (let pick = 0; pick < 10; pick++) {
-            // Get the original team based on lottery results
             const originalTeamIndex = lotteryResults[pick].name === teams[pick].name ? pick : teams.findIndex(team => team.name === lotteryResults[pick].name);
-            
-            // Get the team that owns this pick
             const ownerTeamIndex = pickOwnership[round][originalTeamIndex] !== null ? pickOwnership[round][originalTeamIndex] : originalTeamIndex;
-            
+
             const pickDiv = document.createElement('div');
             pickDiv.className = 'draft-pick';
-            
+
             const pickNumber = document.createElement('span');
             pickNumber.className = 'draft-pick-number';
             pickNumber.textContent = `${round * 10 + pick + 1}.`;
-            
+
             const pickTeam = document.createElement('span');
             pickTeam.className = 'draft-pick-team';
             pickTeam.textContent = teams[ownerTeamIndex].name;
-            
+
             pickDiv.appendChild(pickNumber);
             pickDiv.appendChild(pickTeam);
-            
-            // If the pick is owned by a different team than the original team, show the original team
+
             if (ownerTeamIndex !== originalTeamIndex) {
                 const originalTeam = document.createElement('span');
                 originalTeam.className = 'draft-pick-original';
                 originalTeam.textContent = `(via ${teams[originalTeamIndex].name})`;
                 pickDiv.appendChild(originalTeam);
             }
-            
+
             roundDiv.appendChild(pickDiv);
         }
-        
+
         fullDraftOrderDiv.appendChild(roundDiv);
     }
-    
-    // Download buttons (full order and top 10 only)
+
+    // Download buttons
     const downloadWrap = document.createElement('div');
     downloadWrap.className = 'draft-order-downloads';
-    downloadWrap.style.display = 'flex';
-    downloadWrap.style.flexWrap = 'wrap';
-    downloadWrap.style.gap = '0.75rem';
-    downloadWrap.style.marginTop = '1rem';
-    downloadWrap.style.justifyContent = 'center';
+
     const fullBtn = document.createElement('button');
+    fullBtn.type = 'button';
     fullBtn.className = 'lottery-button';
     fullBtn.textContent = 'Download full draft order';
     fullBtn.addEventListener('click', () => downloadFullDraftOrder(lotteryResults));
+
     const top10Btn = document.createElement('button');
+    top10Btn.type = 'button';
     top10Btn.className = 'lottery-button';
     top10Btn.textContent = 'Download lottery results';
     top10Btn.title = 'Original top 10 (before pick trades)';
-    top10Btn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+
     top10Btn.addEventListener('click', () => downloadOriginalTop10(lotteryResults));
+
     downloadWrap.appendChild(fullBtn);
     downloadWrap.appendChild(top10Btn);
     fullDraftOrderDiv.appendChild(downloadWrap);
-    
-    // Make the draft order section visible
+
     const draftOrderSection = document.querySelector('.draft-order-section');
-    if (draftOrderSection) {
-        draftOrderSection.style.display = 'block';
-    }
+    if (draftOrderSection) draftOrderSection.style.display = 'block';
 }
 
 function downloadFullDraftOrder(lotteryResults) {
@@ -722,8 +687,7 @@ function downloadFullDraftOrder(lotteryResults) {
         const r = rows[i];
         lines.push(`${r.pickNumber}. ${r.teamName}${r.viaName ? ` (via ${r.viaName})` : ''}`);
     }
-    const text = lines.join('\n');
-    const blob = new Blob([text], { type: 'text/plain' });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'draft-order-full.txt';
@@ -731,14 +695,12 @@ function downloadFullDraftOrder(lotteryResults) {
     URL.revokeObjectURL(a.href);
 }
 
-// Original top 10 from the lottery only (no pick trades).
 function downloadOriginalTop10(lotteryResults) {
     const lines = ['Round 1 – original lottery order (before trades)', ''];
     for (let i = 0; i < 10 && i < lotteryResults.length; i++) {
         lines.push(`${i + 1}. ${lotteryResults[i].name}`);
     }
-    const text = lines.join('\n');
-    const blob = new Blob([text], { type: 'text/plain' });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'draft-order-original-top10.txt';
@@ -746,25 +708,27 @@ function downloadOriginalTop10(lotteryResults) {
     URL.revokeObjectURL(a.href);
 }
 
-// Modify the runLottery function to handle magic number with visible quick runs (deterministic: Nth run = official result).
+// ============================================
+// LOTTERY UI — MAIN ENTRY
+// ============================================
+
 function runLottery() {
     if (!teamsLocked) {
-        alert('Please confirm the team order before running the lottery.');
+        showToast('Please confirm the team order before running the lottery.');
         return;
     }
     if (!pickOwnershipLocked) {
-        alert('Please confirm pick ownership before running the lottery.');
+        showToast('Please confirm pick ownership before running the lottery.');
         return;
     }
 
     const magicNumberInput = document.getElementById('magicNumber');
-    const magicNumber = parseInt(magicNumberInput.value) || 1;
+    const magicNumber = parseInt(magicNumberInput.value, 10) || 1;
     if (magicNumber < 1 || magicNumber > 99) {
-        alert('Magic number must be between 1 and 99');
+        showToast('Magic number must be between 1 and 99', 'warning');
         return;
     }
 
-    // Update team names from dropdowns
     const inputs = document.querySelectorAll('.team-input-row select');
     inputs.forEach((input, index) => {
         if (input.value.trim()) {
@@ -775,14 +739,17 @@ function runLottery() {
     });
     saveTeamNames();
 
-    // Precompute N runs (each random). Previews show runs 1..N-1; the Nth run is the official result. Same magic number gives different results each time.
     const precomputedResults = [];
     for (let i = 0; i < magicNumber; i++) {
         precomputedResults.push(runQuickLottery());
     }
 
+    // Create fullscreen modal
     const fullscreenView = document.createElement('div');
     fullscreenView.className = 'lottery-fullscreen';
+    fullscreenView.setAttribute('role', 'dialog');
+    fullscreenView.setAttribute('aria-modal', 'true');
+    fullscreenView.setAttribute('aria-label', 'Draft Lottery Results');
     document.body.appendChild(fullscreenView);
 
     const contentContainer = document.createElement('div');
@@ -790,12 +757,25 @@ function runLottery() {
     fullscreenView.appendChild(contentContainer);
 
     const closeButton = document.createElement('button');
+    closeButton.type = 'button';
     closeButton.className = 'close-button';
     closeButton.innerHTML = '&times;';
+    closeButton.setAttribute('aria-label', 'Close lottery results');
     closeButton.addEventListener('click', () => {
         document.body.removeChild(fullscreenView);
     });
     contentContainer.appendChild(closeButton);
+
+    // ESC key to close
+    function handleEsc(e) {
+        if (e.key === 'Escape') {
+            if (fullscreenView.parentNode) {
+                document.body.removeChild(fullscreenView);
+            }
+            document.removeEventListener('keydown', handleEsc);
+        }
+    }
+    document.addEventListener('keydown', handleEsc);
 
     const title = document.createElement('h2');
     title.className = 'lottery-title';
@@ -806,6 +786,10 @@ function runLottery() {
     animationContainer.className = 'lottery-animation-container';
     contentContainer.appendChild(animationContainer);
 
+    // Focus the close button for accessibility
+    closeButton.focus();
+
+    // ---- Quick Iterations ----
     function runQuickIterations(currentIteration) {
         if (currentIteration < magicNumber - 1) {
             const iterationMsg = document.createElement('div');
@@ -817,422 +801,231 @@ function runLottery() {
             const quickResults = precomputedResults[currentIteration];
             const podiumContainer = document.createElement('div');
             podiumContainer.className = 'quick-iteration-podium';
-            
-            // Create podium places (in reverse order for flex alignment)
+
             [2, 1, 0].forEach((place) => {
                 const podiumPlace = document.createElement('div');
                 podiumPlace.className = `podium-place ${place === 0 ? 'first' : place === 1 ? 'second' : 'third'}`;
-                
+
                 const podiumBlock = document.createElement('div');
                 podiumBlock.className = 'podium-block';
-                
+
                 const teamName = document.createElement('div');
                 teamName.className = 'podium-team-name';
                 teamName.textContent = quickResults[place].name;
-                
+
                 const placeNumber = document.createElement('div');
                 placeNumber.textContent = `${place + 1}${place === 0 ? 'st' : place === 1 ? 'nd' : 'rd'}`;
-                
+
                 podiumBlock.appendChild(teamName);
                 podiumBlock.appendChild(placeNumber);
                 podiumPlace.appendChild(podiumBlock);
                 podiumContainer.appendChild(podiumPlace);
             });
-            
+
             animationContainer.appendChild(podiumContainer);
 
             setTimeout(() => {
                 runQuickIterations(currentIteration + 1);
-            }, 800);
+            }, ITERATION_DELAY_MS);
         } else {
             runFinalLottery(precomputedResults[magicNumber - 1]);
         }
     }
 
+    // ---- Final Lottery Reveal ----
     function runFinalLottery(officialResult) {
         animationContainer.innerHTML = '';
 
         const calculatingMsg = document.createElement('div');
         calculatingMsg.className = 'fullscreen-calculating';
         calculatingMsg.textContent = 'Calculating the FINAL draft order...';
-        calculatingMsg.style.color = '#000000'; // Change to black text
-        calculatingMsg.style.fontSize = '2.5rem';
-        calculatingMsg.style.fontWeight = 'bold';
-        calculatingMsg.style.position = 'absolute';
-        calculatingMsg.style.top = '50%';
-        calculatingMsg.style.left = '50%';
-        calculatingMsg.style.transform = 'translate(-50%, -50%)';
-        calculatingMsg.style.width = '100%';
-        calculatingMsg.style.textAlign = 'center';
-        calculatingMsg.style.animation = 'calculatingAnimation 2s ease-in-out infinite';
         animationContainer.appendChild(calculatingMsg);
-        
-        // Add animation keyframes for the calculating message
-        const calcAnimStyle = document.createElement('style');
-        calcAnimStyle.textContent = `
-            @keyframes calculatingAnimation {
-                0% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
-                50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-                100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
-            }
-        `;
-        document.head.appendChild(calcAnimStyle);
 
         const results = officialResult;
         const jumpAnalysis = analyzeLotteryJumps(results);
-        const PICK_DELAY_MS = 3000;
-        const PICK_DELAY_SECONDS = PICK_DELAY_MS / 1000;
-        
-        // Start the reveal process after a longer delay (5 seconds)
+
         setTimeout(() => {
             animationContainer.removeChild(calculatingMsg);
-            
-            // Start with revealing picks 10-5 (automatic)
             revealAutomaticPicks();
-        }, 5000);
-        
-        // Step 1: Reveal automatic picks (10-5)
+        }, CALCULATING_DELAY_MS);
+
+        // Step 1: Reveal picks 10-5
         function revealAutomaticPicks() {
             animationContainer.innerHTML = '';
 
             const batchHeader = document.createElement('div');
             batchHeader.className = 'batch-header';
             batchHeader.textContent = 'Picks 10 through 5';
-            batchHeader.style.fontSize = '1.8rem';
-            batchHeader.style.fontWeight = 'bold';
-            batchHeader.style.color = '#ff6b6b';
-            batchHeader.style.marginBottom = '1rem';
             animationContainer.appendChild(batchHeader);
-            
+
             const picksWrapper = document.createElement('div');
             picksWrapper.className = 'automatic-picks-wrapper';
             animationContainer.appendChild(picksWrapper);
-            
-            let currentIndex = 9; // Start from pick 10
-            
+
+            let currentIndex = 9;
+
             function showNextPick() {
-                if (currentIndex >= 4) { // For picks 10 to 5
+                if (currentIndex >= 4) {
                     const resultItem = document.createElement('div');
                     resultItem.className = 'fullscreen-result-item';
                     const pickNumber = currentIndex + 1;
                     resultItem.textContent = `Pick ${pickNumber}: ${results[currentIndex].name}`;
-                    
+
                     if (currentIndex >= 6) {
-                        resultItem.style.backgroundColor = '#ffcccb';
-                        resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
+                        resultItem.classList.add('pick-auto');
                     } else {
-                        resultItem.style.backgroundColor = '#f8f9fa';
-                        resultItem.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
+                        resultItem.classList.add('pick-lottery');
                     }
-                    resultItem.style.fontWeight = 'normal';
-                    
+
                     const fallInfo = jumpAnalysis.fallersByPick.get(pickNumber);
                     if (fallInfo) {
-                        resultItem.style.border = '3px solid #ff6b6b';
-                        resultItem.style.position = 'relative';
-                        resultItem.style.overflow = 'hidden';
-                        
+                        resultItem.classList.add('has-faller');
+
                         const chaosNote = document.createElement('div');
+                        chaosNote.className = 'chaos-note';
                         chaosNote.textContent = `Shock drop! ${fallInfo.team.name} fell out of the Top 4.`;
-                        chaosNote.style.marginTop = '0.5rem';
-                        chaosNote.style.fontWeight = 'bold';
-                        chaosNote.style.color = '#c0392b';
-                        chaosNote.style.fontSize = '1rem';
-                        chaosNote.style.animation = 'shake 0.4s infinite';
                         resultItem.appendChild(chaosNote);
                     }
-                    
-                    // Insert at the top of the list (right below the header)
+
                     if (picksWrapper.firstChild) {
                         picksWrapper.insertBefore(resultItem, picksWrapper.firstChild);
                     } else {
                         picksWrapper.appendChild(resultItem);
                     }
-                    
+
                     currentIndex--;
-                    
-                    // Continue with next pick after delay
+
                     if (currentIndex >= 4) {
                         setTimeout(showNextPick, PICK_DELAY_MS);
                     } else {
                         setTimeout(() => {
                             const nextButton = document.createElement('button');
+                            nextButton.type = 'button';
                             nextButton.textContent = 'Reveal Top 4 Picks';
                             nextButton.className = 'lottery-button';
                             nextButton.style.margin = '2rem auto';
                             nextButton.style.display = 'block';
-                            
                             nextButton.addEventListener('click', () => {
                                 animationContainer.innerHTML = '';
                                 revealTopFour();
                             });
-                            
                             animationContainer.appendChild(nextButton);
-                        }, 1000);
+                            nextButton.focus();
+                        }, NEXT_BUTTON_DELAY_MS);
                     }
                 }
             }
-            
+
             showNextPick();
         }
 
-        // Step 2: Reveal top 4 picks in podium style
+        // Step 2: Reveal top 4 picks
         function revealTopFour() {
-            // Clear any previous content
             animationContainer.innerHTML = '';
-            
-            // Make the container much taller to accommodate everything
             animationContainer.style.minHeight = '800px';
             animationContainer.style.padding = '2rem';
-            
+
             const batchHeader = document.createElement('div');
             batchHeader.className = 'batch-header';
             batchHeader.textContent = 'Top 4 Draft Picks';
             batchHeader.style.fontSize = '2.5rem';
-            batchHeader.style.fontWeight = 'bold';
-            batchHeader.style.color = '#4834d4';
-            batchHeader.style.marginBottom = '3rem';
-            batchHeader.style.textAlign = 'center';
-            batchHeader.style.width = '100%';
             animationContainer.appendChild(batchHeader);
-            
-            // Add a dedicated area for the drumroll message that stays in place
+
             const drumrollArea = document.createElement('div');
             drumrollArea.className = 'drumroll-area';
-            drumrollArea.style.width = '100%';
-            drumrollArea.style.height = '120px';
-            drumrollArea.style.display = 'flex';
-            drumrollArea.style.justifyContent = 'center';
-            drumrollArea.style.alignItems = 'center';
-            drumrollArea.style.margin = '2rem 0 3rem 0';
-            drumrollArea.style.position = 'relative';
             animationContainer.appendChild(drumrollArea);
-            
-            // Create podium container with fixed dimensions - make it much larger
+
             const podiumContainer = document.createElement('div');
             podiumContainer.className = 'top-four-podium';
-            podiumContainer.style.display = 'flex';
-            podiumContainer.style.justifyContent = 'center';
-            podiumContainer.style.alignItems = 'flex-end';
-            podiumContainer.style.height = '550px'; // Increased height more
-            podiumContainer.style.margin = '0 auto 3rem auto';
-            podiumContainer.style.padding = '0';
-            podiumContainer.style.width = '100%';
-            podiumContainer.style.maxWidth = '1000px'; // Increased width
-            podiumContainer.style.position = 'relative';
             animationContainer.appendChild(podiumContainer);
-            
-            // Create fixed positions for each podium place with more spacing
+
             const positions = [
-                {order: 0, position: 3, width: 200}, // 4th place - Increased width
-                {order: 1, position: 2, width: 220}, // 3rd place - Increased width
-                {order: 2, position: 0, width: 270}, // 1st place - Increased width
-                {order: 3, position: 1, width: 250}  // 2nd place - Increased width
+                { order: 0, position: 3, cssClass: 'pos-4' },
+                { order: 1, position: 2, cssClass: 'pos-3' },
+                { order: 2, position: 0, cssClass: 'pos-1' },
+                { order: 3, position: 1, cssClass: 'pos-2' }
             ];
-            
-            // Create empty placeholder elements to maintain layout - wider with more spacing
+
             positions.forEach(pos => {
                 const placeholder = document.createElement('div');
-                placeholder.className = `podium-placeholder position-${pos.position + 1}`;
-                placeholder.style.flex = '1';
-                placeholder.style.minWidth = `${pos.width}px`;
-                placeholder.style.maxWidth = `${pos.width}px`;
-                placeholder.style.height = '10px';
-                placeholder.style.margin = '0 25px'; // Even more spacing
-                placeholder.style.opacity = '0';
-                placeholder.style.order = pos.order.toString();
+                placeholder.className = `podium-placeholder ${pos.cssClass}`;
                 podiumContainer.appendChild(placeholder);
             });
-            
-            // Function to reveal each podium place with adjusted timing
+
             function revealPodiumPlace(index) {
                 if (index >= positions.length) {
                     finishReveal();
                     return;
                 }
-                
+
                 const position = positions[index].position;
                 const pickNumber = position + 1;
                 const jumperInfo = jumpAnalysis.jumpersByPick.get(pickNumber);
-                
-                // Update drumroll message for the current position
+
+                // Drumroll message
                 const drumroll = document.createElement('div');
                 drumroll.className = 'fullscreen-drumroll';
-                
-                if (position === 0) {
-                    drumroll.textContent = 'The team picking 1st in this years draft will be...';
-                    drumroll.style.color = '#ffd700';
-                } else if (position === 1) {
-                    drumroll.textContent = 'The team picking 2nd in this years draft will be...';
-                    drumroll.style.color = '#c0c0c0';
-                } else if (position === 2) {
-                    drumroll.textContent = 'The team picking 3rd in this years draft will be...';
-                    drumroll.style.color = '#cd7f32';
-                } else {
-                    drumroll.textContent = 'The team picking 4th in this years draft will be...';
-                    drumroll.style.color = '#6c5ce7';
-                }
-                
-                drumroll.style.fontSize = '2.2rem'; // Larger text
-                drumroll.style.fontWeight = 'bold';
-                drumroll.style.textAlign = 'center';
-                drumroll.style.padding = '1.5rem';
-                drumroll.style.animation = 'shake 0.5s infinite';
-                drumroll.style.width = '100%';
-                
+
+                const pickLabels = ['1st', '2nd', '3rd', '4th'];
+                const colorClasses = ['pick-gold', 'pick-silver', 'pick-bronze', 'pick-fourth'];
+                drumroll.classList.add(colorClasses[position]);
+                drumroll.textContent = `The team picking ${pickLabels[position]} in this years draft will be...`;
+
                 if (jumperInfo) {
                     const chaosLine = document.createElement('div');
+                    chaosLine.className = 'upset-alert';
                     chaosLine.textContent = `UPSET ALERT: ${jumperInfo.team.name} jumps from the ${formatOrdinal(jumperInfo.fromSeed)} seed!`;
-                    chaosLine.style.marginTop = '0.75rem';
-                    chaosLine.style.fontSize = '1.4rem';
-                    chaosLine.style.color = '#ffeaa7';
-                    chaosLine.style.fontWeight = 'bold';
-                    chaosLine.style.animation = 'pulse 0.8s infinite alternate';
                     drumroll.appendChild(chaosLine);
                 }
-                
-                // Clear previous drumroll and add new one
+
                 drumrollArea.innerHTML = '';
                 drumrollArea.appendChild(drumroll);
-                
-                // Run a 3-second countdown before revealing the pick
+
                 showPickTimer(PICK_DELAY_SECONDS, () => {
                     revealPodiumPosition(position);
                 });
-                
-                // Helper function to reveal a podium position
+
                 function revealPodiumPosition(position) {
                     const jumperHighlight = jumpAnalysis.jumpersByPick.get(position + 1);
-                    // Find the placeholder for this position
-                    const placeholder = document.querySelector(`.podium-placeholder.position-${position + 1}`);
-                    
-                    // Create podium place - much larger
+                    const placeholder = podiumContainer.querySelector(`.podium-placeholder.pos-${position + 1}`);
+
                     const podiumPlace = document.createElement('div');
-                    podiumPlace.className = 'podium-place';
-                    
-                    // Style based on position - increased heights
-                    if (position === 0) { // 1st place
-                        podiumPlace.style.height = '400px'; // Taller
-                        podiumPlace.style.backgroundColor = '#ffd700';
-                        podiumPlace.style.zIndex = '40';
-                    } else if (position === 1) { // 2nd place
-                        podiumPlace.style.height = '320px'; // Taller
-                        podiumPlace.style.backgroundColor = '#c0c0c0';
-                        podiumPlace.style.zIndex = '30';
-                    } else if (position === 2) { // 3rd place
-                        podiumPlace.style.height = '260px'; // Taller
-                        podiumPlace.style.backgroundColor = '#cd7f32';
-                        podiumPlace.style.zIndex = '20';
-                    } else { // 4th place - make it taller
-                        podiumPlace.style.height = '220px'; // Even taller
-                        podiumPlace.style.backgroundColor = '#6c5ce7';
-                        podiumPlace.style.zIndex = '10';
+                    const placeClasses = ['place-1', 'place-2', 'place-3', 'place-4'];
+                    podiumPlace.className = `top-podium-place ${placeClasses[position]}`;
+
+                    if (jumperHighlight) {
+                        podiumPlace.classList.add('has-jumper');
                     }
-                    
-                    // Common styles for all podium places - larger elements
-                    podiumPlace.style.width = '100%';
-                    podiumPlace.style.display = 'flex';
-                    podiumPlace.style.flexDirection = 'column';
-                    podiumPlace.style.justifyContent = 'flex-start';
-                    podiumPlace.style.alignItems = 'center';
-                    podiumPlace.style.borderRadius = '12px 12px 0 0'; // Rounder corners
-                    podiumPlace.style.padding = '1.5rem 1rem'; // More horizontal space
-                    podiumPlace.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.3)'; // Stronger shadow
-                    podiumPlace.style.position = 'absolute';
-                    podiumPlace.style.bottom = '0';
+
+                    // Position it based on placeholder
                     podiumPlace.style.left = placeholder.offsetLeft + 'px';
                     podiumPlace.style.width = placeholder.offsetWidth + 'px';
-                    podiumPlace.style.animation = 'revealPodium 0.8s ease-out';
-                    podiumPlace.style.boxSizing = 'border-box'; // Ensure padding is included in width/height
-                    
-                    // Position number - made smaller for 4th place
+
                     const positionNumber = document.createElement('div');
+                    positionNumber.className = 'podium-position-number';
                     positionNumber.textContent = `${position + 1}`;
-                    
-                    // Adjust size based on position
-                    if (position === 3) { // 4th place
-                        positionNumber.style.fontSize = '4rem';
-                        positionNumber.style.lineHeight = '1';
-                        positionNumber.style.marginBottom = '0.5rem';
-                    } else {
-                        positionNumber.style.fontSize = '5rem';
-                        positionNumber.style.marginBottom = '1rem';
-                    }
-                    
-                    positionNumber.style.fontWeight = 'bold';
-                    positionNumber.style.color = 'white';
-                    positionNumber.style.textShadow = '3px 3px 6px rgba(0, 0, 0, 0.4)';
                     podiumPlace.appendChild(positionNumber);
-                    
-                    // Team name - ensure it's visible for all positions
+
                     const teamName = document.createElement('div');
+                    teamName.className = 'podium-team-label';
                     teamName.textContent = results[position].name;
-                    
-                    // Adjust team name styling based on position
-                    if (position === 3) { // 4th place
-                        teamName.style.fontSize = '1.4rem';
-                        teamName.style.marginTop = '0.3rem';
-                        teamName.style.lineHeight = '1.2';
-                        teamName.style.wordBreak = 'break-word'; // Allow long names to wrap
-                        teamName.style.whiteSpace = 'normal'; // Allow text wrapping
-                        teamName.style.height = 'auto'; // Auto height based on content
-                        teamName.style.maxHeight = '6rem'; // Increased max height
-                        teamName.style.display = 'flex';
-                        teamName.style.alignItems = 'center';
-                        teamName.style.justifyContent = 'center';
-                    } else if (position === 2) { // 3rd place
-                        teamName.style.fontSize = '1.5rem';
-                        teamName.style.marginTop = '0.5rem';
-                        teamName.style.lineHeight = '1.2';
-                        teamName.style.wordBreak = 'break-word';
-                        teamName.style.whiteSpace = 'normal';
-                    } else if (position === 1) { // 2nd place
-                        teamName.style.fontSize = '1.6rem';
-                        teamName.style.marginTop = '0.8rem';
-                        teamName.style.lineHeight = '1.2';
-                        teamName.style.wordBreak = 'break-word';
-                        teamName.style.whiteSpace = 'normal';
-                    } else { // 1st place
-                        teamName.style.fontSize = '1.8rem';
-                        teamName.style.marginTop = '1rem';
-                        teamName.style.lineHeight = '1.3';
-                        teamName.style.wordBreak = 'break-word';
-                        teamName.style.whiteSpace = 'normal';
-                    }
-                    
-                    teamName.style.fontWeight = 'bold';
-                    teamName.style.color = 'white';
-                    teamName.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.4)';
-                    teamName.style.textAlign = 'center';
-                    teamName.style.width = '100%';
-                    teamName.style.padding = '0 0.5rem';
                     podiumPlace.appendChild(teamName);
-                    
-                    // Add to podium container
-                    podiumContainer.appendChild(podiumPlace);
-                    
+
                     if (jumperHighlight) {
-                        podiumPlace.style.boxShadow = '0 0 40px rgba(255, 215, 0, 0.85)';
                         const chaosBadge = document.createElement('div');
+                        chaosBadge.className = 'lucky-leap-badge';
                         chaosBadge.textContent = 'Lucky Leap!';
-                        chaosBadge.style.marginTop = '1rem';
-                        chaosBadge.style.fontSize = '1.3rem';
-                        chaosBadge.style.fontWeight = 'bold';
-                        chaosBadge.style.color = '#2d3436';
-                        chaosBadge.style.background = '#ffeaa7';
-                        chaosBadge.style.padding = '0.4rem 0.8rem';
-                        chaosBadge.style.borderRadius = '999px';
-                        chaosBadge.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
                         podiumPlace.appendChild(chaosBadge);
                     }
-                    
-                    // Immediately set up the countdown for the next position
+
+                    podiumContainer.appendChild(podiumPlace);
+
                     setTimeout(() => {
                         revealPodiumPlace(index + 1);
                     }, 0);
                 }
             }
-            
+
             function finishReveal() {
                 drumrollArea.innerHTML = '';
 
@@ -1245,31 +1038,11 @@ function runLottery() {
                 const completeMsg = document.createElement('div');
                 completeMsg.className = 'fullscreen-complete';
                 completeMsg.textContent = 'Draft lottery complete!';
-                completeMsg.style.marginTop = '3rem';
-                completeMsg.style.textAlign = 'center';
-                completeMsg.style.fontSize = '2rem';
-                completeMsg.style.fontWeight = 'bold';
-                completeMsg.style.color = '#28a745';
-                completeMsg.style.padding = '1.5rem';
-                completeMsg.style.border = '3px solid #28a745';
-                completeMsg.style.borderRadius = '12px';
-                completeMsg.style.width = '100%';
-                completeMsg.style.maxWidth = '800px';
-                completeMsg.style.margin = '3rem auto';
                 animationContainer.appendChild(completeMsg);
 
-                // Show redraw notice if the discarded combination was hit
                 if (results.redraws > 0) {
                     const redrawMsg = document.createElement('div');
-                    redrawMsg.style.textAlign = 'center';
-                    redrawMsg.style.fontSize = '1rem';
-                    redrawMsg.style.color = '#856404';
-                    redrawMsg.style.backgroundColor = '#fff3cd';
-                    redrawMsg.style.border = '1px solid #ffc107';
-                    redrawMsg.style.borderRadius = '8px';
-                    redrawMsg.style.padding = '0.75rem';
-                    redrawMsg.style.maxWidth = '800px';
-                    redrawMsg.style.margin = '1rem auto';
+                    redrawMsg.className = 'redraw-notice';
                     redrawMsg.textContent = `Discarded combination was drawn ${results.redraws} time${results.redraws > 1 ? 's' : ''} — redraw triggered (NBA rule).`;
                     animationContainer.appendChild(redrawMsg);
                 }
@@ -1278,60 +1051,25 @@ function runLottery() {
                 updateFullDraftOrder(results);
 
                 const btnWrap = document.createElement('div');
-                btnWrap.style.display = 'flex';
-                btnWrap.style.flexWrap = 'wrap';
-                btnWrap.style.gap = '0.75rem';
-                btnWrap.style.justifyContent = 'center';
-                btnWrap.style.marginTop = '1.5rem';
+                btnWrap.className = 'modal-btn-wrap';
 
                 const viewResultsBtn = document.createElement('button');
+                viewResultsBtn.type = 'button';
                 viewResultsBtn.textContent = 'View Full Draft Order';
                 viewResultsBtn.className = 'lottery-button';
                 viewResultsBtn.addEventListener('click', () => {
                     document.body.removeChild(fullscreenView);
+                    document.removeEventListener('keydown', handleEsc);
                     document.querySelector('.draft-order-section')?.scrollIntoView({ behavior: 'smooth' });
                 });
                 btnWrap.appendChild(viewResultsBtn);
                 animationContainer.appendChild(btnWrap);
+                viewResultsBtn.focus();
             }
-            
-            // Start the reveal process
+
             setTimeout(() => {
                 revealPodiumPlace(0);
-            }, 1000); // Short delay before starting
-        }
-        
-        // Countdown timer function
-        function showCountdown(seconds, callback) {
-            const countdownElement = document.createElement('div');
-            countdownElement.className = 'fullscreen-countdown';
-            countdownElement.textContent = `Next pick in: ${seconds}`;
-            countdownElement.style.fontSize = '1.5rem';
-            countdownElement.style.color = '#ffffff';
-            countdownElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            countdownElement.style.padding = '0.5rem 1rem';
-            countdownElement.style.borderRadius = '8px';
-            countdownElement.style.position = 'fixed';
-            countdownElement.style.bottom = '20px';
-            countdownElement.style.right = '20px';
-            countdownElement.style.zIndex = '1100';
-            countdownElement.style.animation = 'pulse 1s infinite alternate';
-            
-            document.body.appendChild(countdownElement);
-            
-            let remainingSeconds = seconds;
-            
-            const interval = setInterval(() => {
-                remainingSeconds--;
-                
-                if (remainingSeconds > 0) {
-                    countdownElement.textContent = `Next pick in: ${remainingSeconds}`;
-                } else {
-                    clearInterval(interval);
-                    document.body.removeChild(countdownElement);
-                    callback();
-                }
-            }, 1000);
+            }, REVEAL_START_DELAY_MS);
         }
     }
 
@@ -1342,100 +1080,104 @@ function runLottery() {
     }
 }
 
-// Completely override the order of display in the results div to ensure consistency
+// ============================================
+// RESULTS DIV (below modal)
+// ============================================
+
 function updateResultsDiv(results) {
     const resultsDiv = document.getElementById('results');
     if (!resultsDiv) return;
-    
-    // Clear existing content
+
     resultsDiv.innerHTML = '';
     resultsDiv.style.display = 'block';
-    
-    // Force inline styles to override any potential CSS conflicts
-    resultsDiv.style.display = 'block';
-    
-    // Create a fresh container with explicit styles
+
     const container = document.createElement('div');
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.width = '100%';
-    container.style.gap = '10px';
-    container.style.margin = '0 auto';
-    container.style.padding = '0';
-    container.style.boxSizing = 'border-box';
-    container.style.position = 'relative'; // Establish a positioning context
-    
-    // Ensure CSS specificity by using !important for critical styles
-    container.setAttribute('style', 
-        'display: flex !important;' +
-        'flex-direction: column !important;' + 
-        'width: 100% !important;' +
-        'gap: 10px !important;' +
-        'margin: 0 auto !important;' +
-        'padding: 0 !important;' + 
-        'box-sizing: border-box !important;' +
-        'position: relative !important;');
-    
-    // Add the results to the container in the intended order (1 to 10)
+    container.className = 'results-container';
+
+    const pickClasses = ['pick-1st', 'pick-2nd', 'pick-3rd'];
+
     for (let i = 0; i < results.length; i++) {
         const resultItem = document.createElement('div');
         resultItem.className = 'result-item';
-        
-        // Apply explicit inline styles
-        resultItem.style.width = '100%';
-        resultItem.style.boxSizing = 'border-box';
-        resultItem.style.padding = '1rem';
-        resultItem.style.margin = '0 0 10px 0';
-        resultItem.style.borderRadius = '8px';
-        resultItem.style.textAlign = 'center';
-        resultItem.style.position = 'relative';
-        resultItem.style.zIndex = '1';
-        resultItem.style.transform = 'none';
-        
-        // Set background color based on pick number
-        if (i === 0) { // 1st pick
-            resultItem.style.backgroundColor = '#ffd700'; // Gold
-            resultItem.style.fontWeight = 'bold';
-            resultItem.style.fontSize = '1.3rem';
-            resultItem.style.boxShadow = '0 4px 6px rgba(255, 215, 0, 0.3)';
-        } else if (i === 1) { // 2nd pick
-            resultItem.style.backgroundColor = '#c0c0c0'; // Silver
-            resultItem.style.fontWeight = 'bold';
-            resultItem.style.fontSize = '1.2rem';
-            resultItem.style.boxShadow = '0 4px 6px rgba(192, 192, 192, 0.3)';
-        } else if (i === 2) { // 3rd pick
-            resultItem.style.backgroundColor = '#cd7f32'; // Bronze
-            resultItem.style.fontWeight = 'bold';
-            resultItem.style.fontSize = '1.1rem';
-            resultItem.style.boxShadow = '0 4px 6px rgba(205, 127, 50, 0.3)';
-        } else if (i >= 6) { // Picks 7-10 (automatic)
-            resultItem.style.backgroundColor = '#ffcccb'; // Light red
-            resultItem.style.boxShadow = '0 2px 4px rgba(255, 0, 0, 0.2)';
+
+        if (i < 3) {
+            resultItem.classList.add(pickClasses[i]);
+        } else if (i >= 6) {
+            resultItem.classList.add('pick-auto');
         }
-        
-        // Add text content without automatic label for picks 7-10
+
         resultItem.textContent = `Pick ${i + 1}: ${results[i].name}`;
-        
-        // Append to the container in sequence
         container.appendChild(resultItem);
     }
-    
-    // Add the container to the results div
+
     resultsDiv.appendChild(container);
-    
+
     const completeMsg = document.createElement('div');
     completeMsg.className = 'complete-message';
     completeMsg.textContent = 'Draft lottery complete!';
-    completeMsg.style.color = '#28a745';
-    completeMsg.style.border = '2px solid #28a745';
-    completeMsg.style.textAlign = 'center';
-    completeMsg.style.padding = '1rem';
-    completeMsg.style.marginTop = '1rem';
-    completeMsg.style.borderRadius = '8px';
-    completeMsg.style.fontWeight = 'bold';
     resultsDiv.appendChild(completeMsg);
-
 }
+
+// ============================================
+// PICK TIMER
+// ============================================
+
+function showPickTimer(seconds, callback) {
+    const timerContainer = document.createElement('div');
+    timerContainer.className = 'pick-timer-container';
+
+    const timerLabel = document.createElement('div');
+    timerLabel.className = 'pick-timer-label';
+    timerLabel.textContent = 'Revealing in';
+    timerContainer.appendChild(timerLabel);
+
+    const timerDisplay = document.createElement('div');
+    timerDisplay.className = 'pick-timer-display';
+    timerDisplay.textContent = seconds.toString();
+    timerContainer.appendChild(timerDisplay);
+
+    const fullscreenView = document.querySelector('.lottery-fullscreen');
+    if (!fullscreenView) return;
+    fullscreenView.appendChild(timerContainer);
+
+    let remainingSeconds = seconds;
+
+    const interval = setInterval(() => {
+        remainingSeconds--;
+
+        if (remainingSeconds > 0) {
+            timerDisplay.textContent = remainingSeconds.toString();
+            if (remainingSeconds <= 1) {
+                timerDisplay.classList.add('urgent');
+                timerContainer.classList.add('urgent');
+            }
+        } else {
+            clearInterval(interval);
+            if (timerContainer.parentNode) {
+                timerContainer.parentNode.removeChild(timerContainer);
+            }
+            callback();
+        }
+    }, 1000);
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+
+function formatOrdinal(num) {
+    const remainder10 = num % 10;
+    const remainder100 = num % 100;
+
+    if (remainder10 === 1 && remainder100 !== 11) return `${num}st`;
+    if (remainder10 === 2 && remainder100 !== 12) return `${num}nd`;
+    if (remainder10 === 3 && remainder100 !== 13) return `${num}rd`;
+    return `${num}th`;
+}
+
+// ============================================
+// INITIALIZATION
+// ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
     applyChancesToTeams();
@@ -1452,338 +1194,4 @@ document.addEventListener('DOMContentLoaded', function() {
     if (draftOrderSection) draftOrderSection.style.display = 'none';
 });
 
-// Make sure the function is available globally
 window.runLottery = runLottery;
-
-// Add CSS for the countdown timer to the styles block at the end of the file
-const styleElement = document.createElement('style');
-styleElement.textContent = `
-    .fullscreen-countdown {
-        font-size: 1.5rem;
-        color: #ffffff;
-        background-color: rgba(0, 0, 0, 0.7);
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1100;
-        animation: pulse 1s infinite alternate;
-    }
-    
-    .lottery-animation-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-height: 400px;
-        padding: 0.8rem;
-        overflow-y: auto;
-        max-height: 90vh;
-        gap: 0.3rem;
-    }
-    
-    .fullscreen-result-item {
-        width: 100%;
-        max-width: 800px;
-        padding: 0.5rem;
-        margin: 0.1rem 0;
-        border-radius: 10px;
-        background-color: var(--background-color);
-        transition: all 0.3s ease;
-        font-size: 1.2rem;
-        text-align: center;
-        animation: slideInFromRight 0.8s ease;
-    }
-    
-    .fullscreen-drumroll,
-    .fullscreen-calculating,
-    .fullscreen-complete {
-        width: 100%;
-        max-width: 800px;
-        z-index: 10;
-    }
-    
-    @keyframes slideInFromRight {
-        from {
-            opacity: 0;
-            transform: translateX(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
-    @keyframes pulse {
-        from { opacity: 0.8; }
-        to { opacity: 1; }
-    }
-`;
-document.head.appendChild(styleElement);
-
-// Update podium animations and styles
-const podiumStyleElement = document.createElement('style');
-podiumStyleElement.textContent = `
-    @keyframes revealPodium {
-        0% {
-            transform: translateY(100px);
-            opacity: 0;
-        }
-        60% {
-            transform: translateY(-20px);
-            opacity: 1;
-        }
-        100% {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes shake {
-        0% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        50% { transform: translateX(0); }
-        75% { transform: translateX(5px); }
-        100% { transform: translateX(0); }
-    }
-    
-    .top-four-podium {
-        perspective: 800px;
-    }
-    
-    .podium-place {
-        transition: all 0.3s ease;
-    }
-    
-    .podium-place:hover {
-        transform: translateY(-15px);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-    }
-    
-    /* Styles for fullscreen modal */
-    .lottery-fullscreen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.9);
-        z-index: 9999;
-        overflow: hidden;
-    }
-    
-    /* Added fixed container styles */
-    .fullscreen-drumroll {
-        width: 100%;
-        max-width: 1000px;
-        margin: 0 auto;
-        text-align: center;
-    }
-    
-    .lottery-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        padding: 3rem;
-        width: 100%;
-        height: 100%;
-        overflow-y: auto;
-        background-color: white;
-    }
-    
-    .lottery-title {
-        font-size: 3rem;
-        color: #4834d4;
-        margin-bottom: 3rem;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
-    }
-    
-    .lottery-animation-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        width: 100%;
-        min-height: 800px;
-        padding: 2rem;
-        overflow-y: auto;
-        overflow-x: hidden;
-        background-color: white;
-    }
-    
-    /* Button styling */
-    .lottery-button {
-        padding: 1.2rem 2.5rem;
-        font-size: 1.5rem;
-        font-weight: 600;
-        background: linear-gradient(135deg, #4834d4 0%, #6c5ce7 100%);
-        color: white;
-        border: none;
-        border-radius: 50px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 6px 15px rgba(72, 52, 212, 0.4);
-    }
-    
-    .lottery-button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(72, 52, 212, 0.5);
-    }
-    
-    .close-button {
-        position: absolute;
-        top: 30px;
-        right: 30px;
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        font-size: 2.5rem;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: white;
-        transition: all 0.3s ease;
-    }
-    
-    .close-button:hover {
-        background: rgba(255, 255, 255, 0.3);
-        transform: rotate(90deg);
-    }
-    
-    /* Add these styles for better spacing with long team names */
-    .podium-place {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        word-wrap: break-word;
-    }
-    
-    /* Ensure team name containers don't break layout */
-    .fullscreen-result-item {
-        overflow-wrap: break-word;
-        word-break: break-word;
-        white-space: normal !important;
-    }
-`;
-document.head.appendChild(podiumStyleElement);
-
-// Create a centralized pick timer function
-function showPickTimer(seconds, callback) {
-    const timerContainer = document.createElement('div');
-    timerContainer.className = 'pick-timer-container';
-    timerContainer.style.display = 'flex';
-    timerContainer.style.flexDirection = 'column';
-    timerContainer.style.alignItems = 'center';
-    timerContainer.style.justifyContent = 'center';
-    timerContainer.style.width = '140px';
-    timerContainer.style.height = '140px';
-    timerContainer.style.borderRadius = '12px';
-    timerContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
-    timerContainer.style.color = '#ffffff';
-    timerContainer.style.position = 'fixed';
-    timerContainer.style.top = '20px';
-    timerContainer.style.right = '20px';
-    timerContainer.style.zIndex = '10000';
-    timerContainer.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.45)';
-    timerContainer.style.backdropFilter = 'blur(6px)';
-    timerContainer.style.padding = '1rem';
-    timerContainer.style.textAlign = 'center';
-    
-    const timerLabel = document.createElement('div');
-    timerLabel.textContent = 'Revealing in';
-    timerLabel.style.fontSize = '1rem';
-    timerLabel.style.marginBottom = '0.25rem';
-    timerLabel.style.letterSpacing = '0.05em';
-    timerContainer.appendChild(timerLabel);
-    
-    const timerDisplay = document.createElement('div');
-    timerDisplay.textContent = seconds.toString();
-    timerDisplay.style.fontSize = '3rem';
-    timerDisplay.style.fontWeight = 'bold';
-    timerContainer.appendChild(timerDisplay);
-    
-    const fullscreenView = document.querySelector('.lottery-fullscreen');
-    fullscreenView.appendChild(timerContainer);
-    
-    let remainingSeconds = seconds;
-    timerContainer.style.animation = 'slideInCorner 0.3s ease-out';
-    
-    const interval = setInterval(() => {
-        remainingSeconds--;
-        
-        if (remainingSeconds > 0) {
-            timerDisplay.textContent = remainingSeconds.toString();
-            if (remainingSeconds <= 3) {
-                timerDisplay.style.color = '#ff6b6b';
-                timerContainer.style.boxShadow = '0 0 20px rgba(255, 107, 107, 0.7)';
-            }
-        } else {
-            clearInterval(interval);
-            fullscreenView.removeChild(timerContainer);
-            callback();
-        }
-    }, 1000);
-}
-
-function formatOrdinal(num) {
-    const remainder10 = num % 10;
-    const remainder100 = num % 100;
-    
-    if (remainder10 === 1 && remainder100 !== 11) {
-        return `${num}st`;
-    }
-    if (remainder10 === 2 && remainder100 !== 12) {
-        return `${num}nd`;
-    }
-    if (remainder10 === 3 && remainder100 !== 13) {
-        return `${num}rd`;
-    }
-    return `${num}th`;
-}
-
-// Add CSS styles for the pick timer
-const timerStyleElement = document.createElement('style');
-timerStyleElement.textContent = `
-    /* Pick timer styles */
-    @keyframes pulse {
-        from { 
-            transform: translate(-50%, -50%) scale(0.95);
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
-        }
-        to { 
-            transform: translate(-50%, -50%) scale(1.05);
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.7);
-        }
-    }
-    
-    /* Ensure the fullscreen container doesn't block the timer */
-    .lottery-fullscreen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.9);
-        z-index: 9999;
-        overflow: hidden;
-    }
-    
-    .pick-timer-container {
-        pointer-events: none;
-    }
-    
-    @keyframes slideInCorner {
-        from {
-            opacity: 0;
-            transform: translateY(-10px) scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-`;
-document.head.appendChild(timerStyleElement); 
