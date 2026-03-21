@@ -44,6 +44,20 @@ const TEAM_LABELS = [
     "Champion"
 ];
 
+// Default team assignments (index 0 = 10th seed, index 9 = champion)
+const DEFAULT_TEAM_ASSIGNMENTS = [
+    "Darcy's Demons",
+    "Teezy's Turtles",
+    "Cyr's Beers",
+    "Buttar's Barbarians",
+    "Sleepy's Steppaz",
+    "Zim's Sims",
+    "Bradley's Bandits",
+    "Sith's Nips",
+    "Moe's Hoes",
+    "Lu's Lazers"
+];
+
 // Teams: names from options, chances from currentChances (synced by applyChancesToTeams).
 const teams = TEAM_NAME_OPTIONS.map((name, i) => ({ name, chances: currentChances[i] }));
 
@@ -104,6 +118,12 @@ function loadSavedTeamNames() {
         const teamNames = JSON.parse(savedTeams);
         teamNames.forEach((name, index) => {
             if (index < teams.length && name) {
+                teams[index].name = name;
+            }
+        });
+    } else {
+        DEFAULT_TEAM_ASSIGNMENTS.forEach((name, index) => {
+            if (index < teams.length) {
                 teams[index].name = name;
             }
         });
