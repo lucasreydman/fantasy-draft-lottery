@@ -121,19 +121,12 @@ function loadSavedTeamNames() {
                 teams[index].name = name;
             }
         });
-    } else if (!localStorage.getItem('lotteryResetDone')) {
-        DEFAULT_TEAM_ASSIGNMENTS.forEach((name, index) => {
-            if (index < teams.length) {
-                teams[index].name = name;
-            }
-        });
     }
 }
 
 function saveTeamNames() {
     const teamNames = teams.map(team => team.name);
     localStorage.setItem('lotteryTeamNames', JSON.stringify(teamNames));
-    localStorage.removeItem('lotteryResetDone');
 }
 
 function loadTeamLockState() {
