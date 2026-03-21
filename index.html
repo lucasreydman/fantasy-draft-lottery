@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zim's Dynasty League - Draft Lottery</title>
-    <link rel="icon" type="image/png" href="images/favicon.png">
     <link rel="stylesheet" href="styles/main.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -24,6 +23,7 @@
 
         <section class="odds-section">
             <h2>Draft Lottery Odds</h2>
+            <p class="odds-table-caption">Canonical odds; draw weights are tuned on load to match these probabilities.</p>
             <div class="odds-table-container">
                 <table class="odds-table">
                     <thead>
@@ -52,11 +52,14 @@
                     <!-- Will be populated by JavaScript -->
                 </div>
             </div>
+            <div id="pickOwnershipActions" class="team-input-actions">
+                <!-- Confirm / Edit Pick Ownership populated by JavaScript when team order is locked -->
+            </div>
         </section>
 
         <section class="draft-order-section">
             <h2>Full Draft Order</h2>
-            <p class="section-description">The complete 3-round draft order will appear here after running the lottery.</p>
+            <p class="section-description">The complete 3-round draft order appears here after running the lottery. Download the full order (with trades) or the original top 10 (lottery result only).</p>
             <div id="fullDraftOrder" class="full-draft-order">
                 <!-- Will be populated by JavaScript after lottery runs -->
             </div>
@@ -65,15 +68,8 @@
         <section class="lottery-section">
             <div class="lottery-controls">
                 <div class="magic-number-input">
-                    <label for="magicNumber">Enter Magic Number (1-99):</label>
-                    <input 
-                        type="number" 
-                        id="magicNumber" 
-                        min="1" 
-                        max="99" 
-                        value="1"
-                        required
-                    >
+                    <label for="magicNumber">Magic number (1–99; the Nth run is the official result):</label>
+                    <input type="number" id="magicNumber" min="1" max="99" value="1" required>
                 </div>
                 <button class="lottery-button" id="lotteryButton">
                     <span class="button-text">Run Lottery</span>
@@ -87,22 +83,11 @@
         </section>
     </div>
 
-    <script>
-        // Debug log to check if script is loading
-        console.log('Page loaded');
-    </script>
     <script src="js/lottery.js"></script>
     <script>
-        // Add event listener when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded');
             const button = document.getElementById('lotteryButton');
-            if (button) {
-                button.addEventListener('click', runLottery);
-                console.log('Button event listener added');
-            } else {
-                console.error('Button not found');
-            }
+            if (button) button.addEventListener('click', runLottery);
         });
     </script>
 </body>

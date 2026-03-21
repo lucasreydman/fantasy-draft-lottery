@@ -1,76 +1,69 @@
 # Fantasy Draft Lottery Simulator
 
-A dynamic web-based lottery simulator for fantasy sports draft order determination, featuring customizable team names, pick trading, and an engaging visual lottery reveal process.
+A web-based lottery simulator for fantasy sports draft order (e.g. Zim's Dynasty League). It supports customizable team names, pick trading, weighted lottery for the top 6 picks with NBA-style rules, and a visual lottery reveal.
 
 ## Features
 
 ### Team Management
-- Customizable team names for up to 10 teams
-- Automatic saving of team names in local storage
-- Pre-configured lottery odds for the top 6 teams
-- Automatic placement for teams 7-10
+- Customizable team names for 10 teams (dropdown + optional custom names)
+- **Confirm team order** locks the team order and unlocks pick ownership
+- **Confirm pick ownership** locks picks and enables the lottery — everything is locked before the sim
+- Names and lock states saved in local storage
 
 ### Lottery System
-- Weighted lottery system for picks 1-6
-- Automatic placement for picks 7-10
-- Magic number functionality (1-99) for running multiple simulations
-- Visual podium display for quick simulation results
-- Dramatic reveal animation for the final lottery results
+- **Weighted lottery** for picks 1–6; teams 7–10 keep their reverse order (no lottery)
+- **NBA-style rules:** Team 1 (10th seed) cannot receive the 6th pick; Team 6 (5th seed) cannot receive the 5th pick. These are enforced in code (0% probability).
+- **Magic number (1–99):** Run that many simulated lotteries; the **Nth** run is the official result. Previews show runs 1 through N−1 on podiums, then the final reveal.
+- Draw weights are **tuned on load** so the actual draw probabilities match the displayed odds table.
 
 ### Pick Trading
-- Full pick ownership management system
-- Trade tracking for all 3 rounds
-- Ability to assign picks to different teams
-- Automatic saving of pick ownership data
+- Pick ownership table for all 3 rounds × 10 picks
+- Assign any pick to any team (trades); saved in local storage
+- Full draft order reflects lottery result + ownership
 
-### Visual Features
-- Gold, silver, and bronze theming for top 3 picks
-- Podium displays for simulation results
-- Fullscreen lottery animations
-- Drumroll effects for top 3 picks
-- Responsive design for various screen sizes
+### Visual & exports
+- Podium displays for quick-run results (gold/silver/bronze for top 3)
+- Fullscreen final lottery reveal with animations
+- Full draft order shown after the lottery
+- **Download full draft order** — full 3-round order as a text file (with pick trades applied; shows “via” when a pick was traded)
+- **Download lottery results** — original top 10 only (lottery result before any trades), as a text file
 
 ## Lottery Odds
 
-The lottery uses the following odds distribution for the top 6 teams:
+Teams 1–6 correspond to **10th seed (worst)** through **5th seed (best)** in the lottery. Each row is the probability that that team receives the given draft pick; each row sums to 100%.
 
-| Team  |   1st   |   2nd   |   3rd   |   4th   |   5th   |   6th   |
-|-------|---------|---------|---------|---------|---------|---------|
-|   1   |  22.4%  |  21.8%  |  20.9%  |  19.1%  |  15.7%  |    -    |
-|   2   |  22.4%  |  21.8%  |  20.9%  |  19.1%  |  14.8%  |   0.9%  |
-|   3   |  22.4%  |  21.8%  |  20.9%  |  19.1%  |  13.8%  |   1.9%  |
-|   4   |  22.4%  |  21.8%  |  20.9%  |  19.1%  |  12.9%  |   2.8%  |
-|   5   |   6.0%  |   7.2%  |   9.1%  |  13.2%  |  42.8%  |  21.7%  |
-|   6   |   4.5%  |   5.5%  |   7.1%  |  10.4%  |    -    |  72.6%  |
+| Team |  1st  |  2nd  |  3rd  |  4th  |  5th  |  6th  |
+|------|-------|-------|-------|-------|-------|-------|
+|  1 (10th) | 22.5% | 21.8% | 20.9% | 19.1% | 15.7% |  0.0% |
+|  2 (9th)  | 22.5% | 21.8% | 20.9% | 19.1% | 14.8% |  0.9% |
+|  3 (8th)  | 22.5% | 21.8% | 20.9% | 19.1% | 13.8% |  1.9% |
+|  4 (7th)  | 22.5% | 21.8% | 20.9% | 19.1% | 12.9% |  2.8% |
+|  5 (6th)  |  6.0% |  7.2% |  9.1% | 13.2% | 42.8% | 21.7% |
+|  6 (5th)  |  4.5% |  5.5% |  7.1% | 10.4% |  0.0% | 72.5% |
 
-## Magic Number Feature
-
-The magic number functionality allows you to:
-- Run multiple quick simulations before the final lottery
-- See the top 3 picks for each simulation on a podium
-- Compare different outcomes before the final result
-- Input any number from 1 to 99 simulations
+- **Team 1 (10th):** 0% for 6th pick — by rule, when only two teams remain for the 5th pick and one is Team 1, Team 1 always gets 5th, so they never get 6th.
+- **Team 6 (5th):** 0% for 5th pick — by rule, Team 6 is excluded from the 5th-pick draw; they get 6th whenever they are still in the pool after picks 1–4.
 
 ## Usage
 
-1. Enter custom team names in the input fields (optional)
-2. Set up pick ownership in the trade table if picks have been traded
-3. Enter a magic number (1-99) to determine the number of simulations
-4. Click "Run Lottery" to start the lottery process
-5. Watch the simulation results and final lottery reveal
-6. View the complete draft order for all 3 rounds
+1. **Enter team names** — Choose a name for each slot (10th Seed through Champion). Each name can be used only once.
+2. **Confirm team order** — Click “Confirm Team Order” to lock the order and unlock the pick ownership table.
+3. **Pick ownership (optional)** — In the table, set which team owns each pick for each round if picks have been traded.
+4. **Confirm pick ownership** — Click “Confirm Pick Ownership” to lock picks and enable the lottery button.
+5. **Magic number** — Enter 1–99. The app runs that many lotteries; the **Nth** run is the official result.
+6. **Run lottery** — Click “Run Lottery” to see preview runs (if N > 1) and then the final draft order.
+7. **Draft order** — View the full 3-round draft order on the page. Use **Download full draft order** for the complete order (with trades) or **Download lottery results** for the original top 10 only (before trades).
 
 ## Data Persistence
 
-The application automatically saves:
-- Custom team names
-- Pick ownership/trades
-- All data is stored in the browser's local storage
+Stored in the browser’s local storage:
+- Team names
+- Team order lock state
+- Pick ownership lock state
+- Pick ownership (trades)
 
 ## Technical Details
 
-Built using:
-- HTML5
-- CSS3
-- Vanilla JavaScript
-- Local Storage API for data persistence
+- **Stack:** HTML5, CSS3, vanilla JavaScript
+- **Lottery logic:** Sequential weighted random draw for picks 1–6. For the 5th pick, Team 6 is excluded and, when the pool has two teams and one is Team 1, Team 1 is assigned 5th. Draw weights are tuned on page load (Monte Carlo) so realized probabilities match the canonical odds table.
+- **Reproducibility:** Each single run can be made reproducible by using a seeded RNG (used internally where needed).
