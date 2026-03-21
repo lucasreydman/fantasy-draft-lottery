@@ -99,10 +99,7 @@
             const resetBtn = document.getElementById('resetButton');
             if (resetBtn) resetBtn.addEventListener('click', function() {
                 if (confirm('This will clear all saved teams, pick ownership, and lock states. Continue?')) {
-                    localStorage.removeItem('lotteryTeamNames');
-                    localStorage.removeItem('lotteryTeamsLocked');
-                    localStorage.removeItem('lotteryPickOwnershipLocked');
-                    localStorage.removeItem('lotteryPickOwnership');
+                    localStorage.clear();
                     location.reload();
                 }
             });
