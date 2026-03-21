@@ -58,8 +58,8 @@ const DEFAULT_TEAM_ASSIGNMENTS = [
     "Lu's Lazers"
 ];
 
-// Teams: names from options, chances from currentChances (synced by applyChancesToTeams).
-const teams = TEAM_NAME_OPTIONS.map((name, i) => ({ name, chances: currentChances[i] }));
+// Teams: start blank, populated from localStorage or user selection.
+const teams = currentChances.map((c) => ({ name: '', chances: c }));
 
 function applyChancesToTeams() {
     currentChances.forEach((c, i) => { teams[i].chances = c; });
