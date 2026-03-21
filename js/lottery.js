@@ -519,12 +519,12 @@ function runQuickLottery() {
     const results = new Array(10);
     const drawnIndices = new Set();
     const drawnTeams = [];
-    let totalRedraws = 0;
+    let discardedRedraws = 0;
 
     for (let pick = 0; pick < 4; pick++) {
         while (true) {
             const r = Math.random() * TOTAL_POOL;
-            if (r >= ASSIGNED) { totalRedraws++; continue; }
+            if (r >= ASSIGNED) { discardedRedraws++; continue; }
 
             let cumulative = 0;
             let hitTeam = null;
@@ -533,7 +533,7 @@ function runQuickLottery() {
                 if (r < cumulative) { hitTeam = lotteryTeams[i]; break; }
             }
 
-            if (drawnIndices.has(hitTeam.originalIndex)) { totalRedraws++; continue; }
+            if (drawnIndices.has(hitTeam.originalIndex)) { continue; }
 
             drawnIndices.add(hitTeam.originalIndex);
             drawnTeams.push(hitTeam);
@@ -554,7 +554,7 @@ function runQuickLottery() {
             : teams.findIndex(t => t.name === team.name);
         return { name: team.name, chances: team.chances, originalIndex: teamIndex };
     });
-    mapped.redraws = totalRedraws;
+    mapped.redraws = discardedRedraws;
     return mapped;
 }
 
