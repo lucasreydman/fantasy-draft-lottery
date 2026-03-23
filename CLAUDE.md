@@ -34,27 +34,18 @@ NBA-style: 1,001 combinations (1 discarded = 1,000 used). Picks 1–4 drawn from
 ## Known Issues & Improvement Areas
 
 ### Code Quality
-- **Magic numbers:** Timing values (800ms, 3000ms, 5000ms), podium heights, and some colors are hardcoded. Could be extracted to constants.
 - **Nested function depth:** `runLottery()` contains deeply nested functions (`runQuickIterations`, `runFinalLottery`, `revealAutomaticPicks`, `revealTopFour`, etc.). Hard to test independently.
-
-### Accessibility
-- No ARIA labels on dynamically created elements
-- No keyboard navigation for fullscreen modal (no ESC to close, no focus trap)
-- No focus management when modal opens/closes
-- Color-only communication for "Shock drop!" and "Lucky Leap!" badges
-- Emojis used without text fallbacks
-
-### Mobile / Responsive
-- Podium heights are fixed px values — overflow on mobile screens
-- Font sizes in some inline styles not responsive
-- No viewport-relative sizing (vw units) for dynamically created elements
-
-### Error Handling
-- No null checks on many `document.getElementById()` calls
-- No validation on pick ownership data structure when loading from localStorage
-- No user feedback when localStorage quota is exceeded (fails silently)
 
 ### Architecture
 - `lottery.js` is a single ~1,200-line file — could be split into modules (lottery logic, UI rendering, state management, exports)
-- localStorage keys are magic strings — should be constants
-- Event listeners on dynamically created elements are never cleaned up (potential memory leaks on extended use)
+
+### Resolved
+- ~~localStorage keys are magic strings~~ → extracted to `LS_KEY_*` constants
+- ~~No validation on pick ownership data when loading from localStorage~~ → validated structure, types, and bounds
+- ~~No user feedback when localStorage quota exceeded~~ → `safeSetItem()` shows toast on quota error
+- ~~No ARIA labels on dynamically created podium elements~~ → added `role`, `aria-label` to quick and top-4 podiums
+- ~~No focus trap on fullscreen modal~~ → `trapFocus()` utility traps Tab within modal; cleaned up on close
+- ~~No focus management when modal opens/closes~~ → close button focused on open; focus trap removed on close
+- ~~Color-only communication for badges~~ → added Unicode arrows (⬆/⬇/⚠) alongside text labels and `aria-label` attributes
+- ~~Podium heights are fixed px values~~ → use `min(px, vh)` for viewport-relative sizing across all breakpoints
+- ~~Inline styles not responsive~~ → moved `min-height`, `font-size`, button margin to CSS classes (`top-four-stage`, `batch-header-lg`, `reveal-top4-btn`)

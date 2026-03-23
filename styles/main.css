@@ -988,11 +988,25 @@ h2::before {
 /* ============================================
    FULLSCREEN: Top 4 Podium
    ============================================ */
+.top-four-stage {
+    min-height: min(800px, 80vh);
+    padding: var(--space-xl);
+}
+
+.batch-header-lg {
+    font-size: clamp(1.4rem, 4vw, 2.5rem);
+}
+
+.reveal-top4-btn {
+    margin: var(--space-xl) auto;
+    display: block;
+}
+
 .top-four-podium {
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    height: 500px;
+    height: min(500px, 55vh);
     margin: 0 auto var(--space-2xl) auto;
     padding: 0;
     width: 100%;
@@ -1034,25 +1048,25 @@ h2::before {
 }
 
 .top-podium-place.place-1 {
-    height: 380px;
+    height: min(380px, 42vh);
     background: linear-gradient(180deg, #FFD700 0%, #E6B800 100%);
     z-index: 40;
 }
 
 .top-podium-place.place-2 {
-    height: 300px;
+    height: min(300px, 33vh);
     background: linear-gradient(180deg, #D4D4D4 0%, #A8A8A8 100%);
     z-index: 30;
 }
 
 .top-podium-place.place-3 {
-    height: 240px;
+    height: min(240px, 26vh);
     background: linear-gradient(180deg, #CD7F32 0%, #A8652A 100%);
     z-index: 20;
 }
 
 .top-podium-place.place-4 {
-    height: 200px;
+    height: min(200px, 22vh);
     background: linear-gradient(180deg, #8B5CF6 0%, #7C3AED 100%);
     z-index: 10;
 }
@@ -1372,13 +1386,13 @@ h2::before {
     }
 
     .top-four-podium {
-        height: 400px;
+        height: min(400px, 50vh);
     }
 
-    .top-podium-place.place-1 { height: 300px; }
-    .top-podium-place.place-2 { height: 240px; }
-    .top-podium-place.place-3 { height: 200px; }
-    .top-podium-place.place-4 { height: 170px; }
+    .top-podium-place.place-1 { height: min(300px, 38vh); }
+    .top-podium-place.place-2 { height: min(240px, 30vh); }
+    .top-podium-place.place-3 { height: min(200px, 25vh); }
+    .top-podium-place.place-4 { height: min(170px, 21vh); }
 
     .podium-placeholder.pos-1,
     .podium-placeholder.pos-2,
@@ -1426,14 +1440,14 @@ h2::before {
     }
 
     .top-four-podium {
-        height: 300px;
+        height: min(300px, 40vh);
         flex-wrap: wrap;
     }
 
-    .top-podium-place.place-1 { height: 220px; }
-    .top-podium-place.place-2 { height: 180px; }
-    .top-podium-place.place-3 { height: 150px; }
-    .top-podium-place.place-4 { height: 130px; }
+    .top-podium-place.place-1 { height: min(220px, 28vh); }
+    .top-podium-place.place-2 { height: min(180px, 23vh); }
+    .top-podium-place.place-3 { height: min(150px, 19vh); }
+    .top-podium-place.place-4 { height: min(130px, 17vh); }
 
     .podium-placeholder.pos-1,
     .podium-placeholder.pos-2,

@@ -16,6 +16,12 @@ const CALCULATING_DELAY_MS = 5000;
 const REVEAL_START_DELAY_MS = 1000;
 const NEXT_BUTTON_DELAY_MS = 1000;
 
+// localStorage keys
+const LS_KEY_TEAM_NAMES = 'lotteryTeamNames';
+const LS_KEY_TEAMS_LOCKED = 'lotteryTeamsLocked';
+const LS_KEY_PICK_OWNERSHIP_LOCKED = 'lotteryPickOwnershipLocked';
+const LS_KEY_PICK_OWNERSHIP = 'lotteryPickOwnership';
+
 let currentChances = [...COMBINATIONS];
 
 const TEAM_NAME_OPTIONS = [
@@ -112,26 +118,38 @@ function showToast(message, type = 'error') {
 // LOCAL STORAGE
 // ============================================
 
+function safeSetItem(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        showToast('Unable to save — storage quota exceeded.', 'warning');
+    }
+}
+
 function loadSavedTeamNames() {
-    const savedTeams = localStorage.getItem('lotteryTeamNames');
-    if (savedTeams) {
+    try {
+        const savedTeams = localStorage.getItem(LS_KEY_TEAM_NAMES);
+        if (!savedTeams) return;
         const teamNames = JSON.parse(savedTeams);
+        if (!Array.isArray(teamNames)) return;
         teamNames.forEach((name, index) => {
             if (index < teams.length && name) {
                 teams[index].name = name;
             }
         });
+    } catch (e) {
+        console.warn('Failed to load saved team names', e);
     }
 }
 
 function saveTeamNames() {
     const teamNames = teams.map(team => team.name);
-    localStorage.setItem('lotteryTeamNames', JSON.stringify(teamNames));
+    safeSetItem(LS_KEY_TEAM_NAMES, JSON.stringify(teamNames));
 }
 
 function loadTeamLockState() {
     try {
-        teamsLocked = localStorage.getItem('lotteryTeamsLocked') === 'true';
+        teamsLocked = localStorage.getItem(LS_KEY_TEAMS_LOCKED) === 'true';
     } catch (error) {
         teamsLocked = false;
     }
@@ -139,7 +157,7 @@ function loadTeamLockState() {
 
 function saveTeamLockState() {
     try {
-        localStorage.setItem('lotteryTeamsLocked', teamsLocked);
+        safeSetItem(LS_KEY_TEAMS_LOCKED, teamsLocked);
     } catch (error) {
         console.warn('Unable to save team lock state', error);
     }
@@ -147,7 +165,7 @@ function saveTeamLockState() {
 
 function loadPickOwnershipLockState() {
     try {
-        pickOwnershipLocked = localStorage.getItem('lotteryPickOwnershipLocked') === 'true';
+        pickOwnershipLocked = localStorage.getItem(LS_KEY_PICK_OWNERSHIP_LOCKED) === 'true';
     } catch (error) {
         pickOwnershipLocked = false;
     }
@@ -155,28 +173,33 @@ function loadPickOwnershipLockState() {
 
 function savePickOwnershipLockState() {
     try {
-        localStorage.setItem('lotteryPickOwnershipLocked', pickOwnershipLocked);
+        safeSetItem(LS_KEY_PICK_OWNERSHIP_LOCKED, pickOwnershipLocked);
     } catch (error) {
         console.warn('Unable to save pick ownership lock state', error);
     }
 }
 
 function loadSavedPickOwnership() {
-    const savedOwnership = localStorage.getItem('lotteryPickOwnership');
-    if (savedOwnership) {
+    try {
+        const savedOwnership = localStorage.getItem(LS_KEY_PICK_OWNERSHIP);
+        if (!savedOwnership) return;
         const parsedOwnership = JSON.parse(savedOwnership);
+        if (!Array.isArray(parsedOwnership) || parsedOwnership.length !== 3) return;
         for (let round = 0; round < 3; round++) {
+            if (!Array.isArray(parsedOwnership[round])) continue;
             for (let pick = 0; pick < 10; pick++) {
-                if (parsedOwnership[round] && parsedOwnership[round][pick] !== null) {
-                    pickOwnership[round][pick] = parsedOwnership[round][pick];
-                }
+                const val = parsedOwnership[round][pick];
+                if (val !== null && (typeof val !== 'number' || val < 0 || val > 9)) continue;
+                pickOwnership[round][pick] = val;
             }
         }
+    } catch (e) {
+        console.warn('Failed to load saved pick ownership', e);
     }
 }
 
 function savePickOwnership() {
-    localStorage.setItem('lotteryPickOwnership', JSON.stringify(pickOwnership));
+    safeSetItem(LS_KEY_PICK_OWNERSHIP, JSON.stringify(pickOwnership));
 }
 
 // ============================================
@@ -775,21 +798,21 @@ function runLottery() {
     closeButton.className = 'close-button';
     closeButton.innerHTML = '&times;';
     closeButton.setAttribute('aria-label', 'Close lottery results');
-    closeButton.addEventListener('click', () => {
-        document.body.removeChild(fullscreenView);
-        document.querySelector('.draft-order-section')?.scrollIntoView({ behavior: 'smooth' });
-    });
+    function closeModal() {
+        if (fullscreenView.parentNode) {
+            document.body.removeChild(fullscreenView);
+            document.querySelector('.draft-order-section')?.scrollIntoView({ behavior: 'smooth' });
+        }
+        document.removeEventListener('keydown', handleEsc);
+        removeTrap();
+    }
+
+    closeButton.addEventListener('click', closeModal);
     contentContainer.appendChild(closeButton);
 
     // ESC key to close
     function handleEsc(e) {
-        if (e.key === 'Escape') {
-            if (fullscreenView.parentNode) {
-                document.body.removeChild(fullscreenView);
-                document.querySelector('.draft-order-section')?.scrollIntoView({ behavior: 'smooth' });
-            }
-            document.removeEventListener('keydown', handleEsc);
-        }
+        if (e.key === 'Escape') closeModal();
     }
     document.addEventListener('keydown', handleEsc);
 
@@ -802,8 +825,9 @@ function runLottery() {
     animationContainer.className = 'lottery-animation-container';
     contentContainer.appendChild(animationContainer);
 
-    // Focus the close button for accessibility
+    // Accessibility: focus close button and trap focus within modal
     closeButton.focus();
+    const removeTrap = trapFocus(fullscreenView);
 
     // ---- Quick Iterations ----
     function runQuickIterations(currentIteration) {
@@ -817,10 +841,14 @@ function runLottery() {
             const quickResults = precomputedResults[currentIteration];
             const podiumContainer = document.createElement('div');
             podiumContainer.className = 'quick-iteration-podium';
+            podiumContainer.setAttribute('role', 'list');
+            podiumContainer.setAttribute('aria-label', `Quick lottery results ${currentIteration + 1} of ${magicNumber - 1}`);
 
             [2, 1, 0].forEach((place) => {
                 const podiumPlace = document.createElement('div');
                 podiumPlace.className = `podium-place ${place === 0 ? 'first' : place === 1 ? 'second' : 'third'}`;
+                podiumPlace.setAttribute('role', 'listitem');
+                podiumPlace.setAttribute('aria-label', `${formatOrdinal(place + 1)} pick: ${quickResults[place].name}`);
 
                 const podiumBlock = document.createElement('div');
                 podiumBlock.className = 'podium-block';
@@ -899,7 +927,8 @@ function runLottery() {
 
                         const chaosNote = document.createElement('div');
                         chaosNote.className = 'chaos-note';
-                        chaosNote.textContent = `Shock drop! ${fallInfo.team.name} fell out of the Top 4.`;
+                        chaosNote.textContent = `\u2B07 Shock drop! ${fallInfo.team.name} fell out of the Top 4.`;
+                        chaosNote.setAttribute('aria-label', `Shock drop: ${fallInfo.team.name} fell out of the Top 4`);
                         resultItem.appendChild(chaosNote);
                     }
 
@@ -918,9 +947,7 @@ function runLottery() {
                             const nextButton = document.createElement('button');
                             nextButton.type = 'button';
                             nextButton.textContent = 'Reveal Top 4 Picks';
-                            nextButton.className = 'lottery-button';
-                            nextButton.style.margin = '2rem auto';
-                            nextButton.style.display = 'block';
+                            nextButton.className = 'lottery-button reveal-top4-btn';
                             nextButton.addEventListener('click', () => {
                                 animationContainer.innerHTML = '';
                                 revealTopFour();
@@ -938,13 +965,11 @@ function runLottery() {
         // Step 2: Reveal top 4 picks
         function revealTopFour() {
             animationContainer.innerHTML = '';
-            animationContainer.style.minHeight = '800px';
-            animationContainer.style.padding = '2rem';
+            animationContainer.classList.add('top-four-stage');
 
             const batchHeader = document.createElement('div');
-            batchHeader.className = 'batch-header';
+            batchHeader.className = 'batch-header batch-header-lg';
             batchHeader.textContent = 'Top 4 Draft Picks';
-            batchHeader.style.fontSize = '2.5rem';
             animationContainer.appendChild(batchHeader);
 
             const drumrollArea = document.createElement('div');
@@ -953,6 +978,8 @@ function runLottery() {
 
             const podiumContainer = document.createElement('div');
             podiumContainer.className = 'top-four-podium';
+            podiumContainer.setAttribute('role', 'list');
+            podiumContainer.setAttribute('aria-label', 'Top 4 draft picks');
             animationContainer.appendChild(podiumContainer);
 
             const positions = [
@@ -990,7 +1017,7 @@ function runLottery() {
                 if (jumperInfo) {
                     const chaosLine = document.createElement('div');
                     chaosLine.className = 'upset-alert';
-                    chaosLine.textContent = `UPSET ALERT: ${jumperInfo.team.name} jumps from the ${formatOrdinal(jumperInfo.fromSeed)} seed!`;
+                    chaosLine.textContent = `\u26A0 UPSET ALERT: ${jumperInfo.team.name} jumps from the ${formatOrdinal(jumperInfo.fromSeed)} seed!`;
                     drumroll.appendChild(chaosLine);
                 }
 
@@ -1008,6 +1035,8 @@ function runLottery() {
                     const podiumPlace = document.createElement('div');
                     const placeClasses = ['place-1', 'place-2', 'place-3', 'place-4'];
                     podiumPlace.className = `top-podium-place ${placeClasses[position]}`;
+                    podiumPlace.setAttribute('role', 'listitem');
+                    podiumPlace.setAttribute('aria-label', `${formatOrdinal(position + 1)} pick: ${results[position].name}${jumperHighlight ? ' — Lucky Leap upset!' : ''}`);
 
                     if (jumperHighlight) {
                         podiumPlace.classList.add('has-jumper');
@@ -1030,7 +1059,8 @@ function runLottery() {
                     if (jumperHighlight) {
                         const chaosBadge = document.createElement('div');
                         chaosBadge.className = 'lucky-leap-badge';
-                        chaosBadge.textContent = 'Lucky Leap!';
+                        chaosBadge.textContent = '\u2B06 Lucky Leap!';
+                        chaosBadge.setAttribute('aria-label', `Upset: ${results[position].name} jumped into the top 4`);
                         podiumPlace.appendChild(chaosBadge);
                     }
 
@@ -1073,11 +1103,7 @@ function runLottery() {
                 viewResultsBtn.type = 'button';
                 viewResultsBtn.textContent = 'View Full Draft Order';
                 viewResultsBtn.className = 'lottery-button';
-                viewResultsBtn.addEventListener('click', () => {
-                    document.body.removeChild(fullscreenView);
-                    document.removeEventListener('keydown', handleEsc);
-                    document.querySelector('.draft-order-section')?.scrollIntoView({ behavior: 'smooth' });
-                });
+                viewResultsBtn.addEventListener('click', closeModal);
                 btnWrap.appendChild(viewResultsBtn);
                 animationContainer.appendChild(btnWrap);
                 viewResultsBtn.focus();
@@ -1181,6 +1207,23 @@ function showPickTimer(seconds, callback) {
 // ============================================
 // UTILITIES
 // ============================================
+
+function trapFocus(container) {
+    function handler(e) {
+        if (e.key !== 'Tab') return;
+        const focusable = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+            if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+            if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+    }
+    container.addEventListener('keydown', handler);
+    return () => container.removeEventListener('keydown', handler);
+}
 
 function formatOrdinal(num) {
     const remainder10 = num % 10;
