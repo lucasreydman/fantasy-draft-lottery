@@ -1,4 +1,4 @@
-# Fantasy Draft Lottery Simulator
+# TPDL Lottery
 
 A web-based NBA-style lottery simulator for fantasy sports draft order. Uses the exact same mechanism as the real NBA Draft Lottery — fixed combinations, sequential draws with redraw rules, and remaining picks by reverse record.
 

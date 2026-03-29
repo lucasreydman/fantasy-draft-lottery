@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Fantasy Draft Lottery Simulator — a web-based NBA-style lottery for The People's Dynasty League. Pure HTML/CSS/JS, no build tools, no frameworks. Single-page app served from `index.html`. Deployed to GitHub Pages via GitHub Actions on push to `main`.
+TPDL Lottery — a web-based NBA-style lottery for The People's Dynasty League. Pure HTML/CSS/JS, no build tools, no frameworks. Single-page app served from `index.html`. Deployed to GitHub Pages via GitHub Actions on push to `main`.
 
 ## File Structure
 
