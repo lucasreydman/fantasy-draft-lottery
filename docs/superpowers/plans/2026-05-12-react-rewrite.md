@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-05-12-react-rewrite-design.md`
 
-**Scope decision (Phase 0):** This plan scaffolds a **new directory** at `C:\Users\lucas\dev\tpdl-lottery-react`. The existing `tpdl-lottery` repo stays live on GitHub Pages until cutover. If you prefer to rewrite in-place instead, adjust Task 1 paths accordingly — nothing else in the plan depends on the choice.
+**Scope decision (Phase 0):** This plan scaffolds a **new directory** at `C:\Users\lucas\dev\tpdl-draft-lottery`. The existing `tpdl-lottery` repo stays live on GitHub Pages until cutover. If you prefer to rewrite in-place instead, adjust Task 1 paths accordingly — nothing else in the plan depends on the choice.
 
 ---
 
@@ -19,19 +19,19 @@
 ### Task 1: Scaffold Next.js project
 
 **Files:**
-- Create: `C:\Users\lucas\dev\tpdl-lottery-react\` (entire project tree via `create-next-app`)
+- Create: `C:\Users\lucas\dev\tpdl-draft-lottery\` (entire project tree via `create-next-app`)
 
 - [ ] **Step 1: Run create-next-app**
 
 ```bash
 cd C:\Users\lucas\dev
-pnpm create next-app@latest tpdl-lottery-react --typescript --tailwind --app --eslint --src-dir=false --import-alias="@/*" --turbopack
+pnpm create next-app@latest tpdl-draft-lottery --typescript --tailwind --app --eslint --src-dir=false --import-alias="@/*" --turbopack
 ```
 
 - [ ] **Step 2: Verify the dev server boots**
 
 ```bash
-cd tpdl-lottery-react
+cd tpdl-draft-lottery
 pnpm dev
 ```
 
@@ -43,12 +43,12 @@ Expected: server on http://localhost:3000 renders the Next.js starter page. Stop
 git init
 git add .
 git commit -m "chore: bootstrap Next.js project"
-gh repo create lucasreydman/tpdl-lottery-react --private --source=. --remote=origin --push
+gh repo create lucasreydman/tpdl-draft-lottery --public --source=. --remote=origin --push
 ```
 
 - [ ] **Step 4: Update package.json with project metadata**
 
-Edit `package.json`: set `"name": "tpdl-lottery-react"`, `"version": "0.1.0"`, `"private": true`.
+Edit `package.json`: set `"name": "tpdl-draft-lottery"`, `"version": "0.1.0"`, `"private": true`.
 
 - [ ] **Step 5: Commit**
 
@@ -1924,7 +1924,7 @@ git push origin main
 
 - [ ] **Step 2: Connect to Vercel (manual, in browser)**
 
-In Vercel dashboard: New Project → import `lucasreydman/tpdl-lottery-react` → accept defaults.
+In Vercel dashboard: New Project → import `lucasreydman/tpdl-draft-lottery` → accept defaults.
 
 - [ ] **Step 3: Provision KV (manual)**
 
