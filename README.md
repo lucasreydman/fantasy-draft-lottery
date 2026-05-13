@@ -1,5 +1,11 @@
 # TPDL Lottery
 
+> **⚠️ This repo is archived.** The current version of the lottery lives at **[tpdl-draft-lottery](https://github.com/lucasreydman/tpdl-draft-lottery)** — a Next.js / Vercel rewrite with shareable result URLs and persistent history.
+>
+> Live app: **https://tpdl-draft-lottery.vercel.app**
+>
+> This repo remains here as historical reference; the GitHub Pages deployment will stay online indefinitely as a fallback.
+
 A web-based NBA-style lottery simulator for fantasy sports draft order. Uses the exact same mechanism as the real NBA Draft Lottery — fixed combinations, sequential draws with redraw rules, and remaining picks by reverse record.
 
 ## Features
