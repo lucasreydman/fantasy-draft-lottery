@@ -18,7 +18,9 @@
       "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"gaming entertainment\" --domain style -n 10)",
       "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"dashboard\" --domain typography -n 5)",
       "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"animation\" --domain ux -n 10)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git -C /c/Users/lucas/dev/fantasy-draft-lottery log --oneline -10)",
+      "Bash(node -c js/lottery.js)"
     ]
   }
 }
